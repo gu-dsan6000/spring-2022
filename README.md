@@ -10,9 +10,6 @@ knit: (function(inputFile, encoding) {
   output_format = "all") })
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
-```
 
 **This page is effective as of `r strftime(Sys.time(), "%A,  %B %d, %Y at %I:%M %p", tz = "America/New_York")`**
 
