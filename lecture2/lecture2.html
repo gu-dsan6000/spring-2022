@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 2 - Big Data and Cloud Computing</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+    <script src="libs/kePrint-0.0.1/kePrint.js"></script>
+    <link href="libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 2 - Big Data and Cloud Computing
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+---
+
+## Agenda and Goals for Today
+
+* Questions about Lab 1 Deliverable and Homework 1?
+* Big Data Background
+* Cloud Computing Background
+* AWS Walkthrough for Security Groups and Computing Instances
+
+---
+
+class: inverse, center, middle
+
+# Lab 1 Deliverable and Homework 1 Questions
+
+---
+
+
+
+class: inverse, center, middle
+
+# BIG DATA
+
+## Where does it come from?&lt;br/&gt;How is it being created?
+
+---
+
+## In one minute of time...
+
+.center[
+&lt;img src="img/data-never-sleeps-9.0.png" width=550&gt;
+]
+
+---
+
+## _A lot_ of it is happening online
+
+.pull-left[
+
+**We can record every:**
+* click
+* ad impression
+* billing event
+* video interaction
+* server request
+* transaction
+* network message
+* fault
+* ...
+]
+
+.pull-right[
+&lt;img src="img/iceberg.jpg"&gt;
+]
+
+---
+
+## It can also be user-generated content, e.g.:
+
+.pull-left[
+* Instagram posts
+* Tweets
+* Videos
+* Yelp reviews
+* Facebook posts
+* Stack Overflow posts
+* ...
+]
+
+.pull-right[
+&lt;img src="img/people.jpg"&gt;
+]
+
+---
+
+## But health and scientific computing create a lot too!
+
+.center[
+&lt;img src="img/scientific.png"&gt;
+]
+
+
+---
+
+## There's lots of **graph** data too
+
+.pull-left[
+Many interesting datasets have a graph structure:
+
+* Social networks
+* Google's knowledge graph
+* Telecom networks
+* Computer networks
+* Road networks
+* Collaboration/relationships
+
+Some of these are **HUGE**
+]
+
+.pull-right[
+&lt;img src="img/big-graph.jpg"&gt;
+]
+
+---
+
+## Apache (web server) log files
+
+.center[
+&lt;img src="img/apache-server-log.jpg" width=600&gt;
+]
+
+
+---
+
+## System log files
+
+.center[
+&lt;img src="img/syslog-file.jpg" width=600&gt;
+]
+
+---
+
+## Internet of Things (IoT)
+
+Sensors everywhere...
+.center[
+&lt;img src="img/sensors-everywhere.jpg" width=600&gt;
+]
+
+---
+
+## Smartphones collecting our information
+
+.center[
+&lt;img src="img/smartphone.jpg"&gt;
+]
+
+---
+
+
+## Where else?
+
+* The Internet
+
+--
+* Transactions
+
+--
+* Databases
+
+--
+* Excel
+
+--
+* PDF Files
+
+--
+* Anything digital (music, movies, apps)
+
+--
+* Some old floppy disk lying around the house
+
+---
+
+## Typical real world scenario
+
+.middle[You have a laptop with 16GB of RAM and a 1TB Solid State drive. You are given a 1TB dataset in text files, where every file is slightly different. **Oh no, what do you do?**]
+
+---
+
+
+class: inverse, center, middle
+
+# What is Big Data?
+
+--
+
+## Let's discuss!
+
+---
+
+## Big Data Definitions
+
+### Wikipedia
+
+_"In essence, is a term for a collection of datasets so large and complex that it becomes difficult to process using traditional tools and applications. Big Data technologies describe a new generation of technologies and architectures designed to economically extract value from very large volumes of a wide variety of data, by enabling high-velocity capture, discover and/or analysis"_
+
+--
+
+### O'Reilly
+
+_"Big data is when the size of the data itself becomes part of the problem"_
+
+--
+
+### EMC/IDC
+
+_"Big data technologies describe a new generation of technologies and architectures, designed to economically extract value from very large volumes of a wide variety of data, by enabling high-velocity capture, discovery, and/or analysis."_
+
+
+---
+
+## Frameworks for thinking about Big Data
+
+### IBM:  (The famous 3-V’s definition)
+
+* Volume (Gigabytes -&gt; Exabytes)
+
+--
+* Velocity (Batch -&gt; Streaming Data)
+
+--
+* Variety (Structured, Semi-structured, &amp; Unstructured)
+
+--
+
+### Additional V's
+
+--
+* Variability
+
+--
+* Veracity
+
+--
+* Visualization
+
+--
+* Value
+
+
+---
+
+## Think of data size as a function of processing and storage
+
+
+* Can you analyze/process your data on a single machine?
+
+--
+
+* Can you store (or is it stored) on a single machine?
+
+--
+
+If any of of the answers is _**no**_ then you have a big-ish data problem!
+
+
+???
+
+Multicore
+
+
+---
+
+# Relative data sizes
+
+&lt;div align="center"&gt;
+&lt;img src="img/medium-1.png" width=600&gt;
+&lt;/div&gt;
+
+---
+
+# Relative data sizes
+
+&lt;div align="center"&gt;
+&lt;img src="img/medium-2.png" width=600&gt;
+&lt;/div&gt;
+
+---
+
+# Relative data sizes
+
+&lt;div align="center"&gt;
+&lt;img src="img/medium-3.png" width=600&gt;
+&lt;/div&gt;
+
+---
+
+# Relative data sizes
+
+&lt;div align="center"&gt;
+&lt;img src="img/medium-4.png" width=600&gt;
+&lt;/div&gt;
+
+---
+
+
+# Relative data sizes
+
+&lt;div align="center"&gt;
+&lt;img src="img/medium-5.png" width=600&gt;
+&lt;/div&gt;
+
+---
+
+
+# Relative data sizes
+
+&lt;div align="center"&gt;
+&lt;img src="img/medium-6.png" width=600&gt;
+&lt;/div&gt;
+
+
+---
+
+# Data Types
+
+* Structured
+* Unstructured
+* Natural language
+* Machine-generated
+* Graph-based
+* Audio, video, and images
+* Streaming
+
+
+---
+
+# Big Data vs. Small Data
+
+&lt;div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:400px; "&gt;&lt;table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt;  &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Small Data is usually... &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; On the other hand, Big Data... &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Goals &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; gathered for a specifric goal &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; may have a goal in mind when it's first started, but things can evolve or take unexpected directions &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Location &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; in one place, and often in a single computer file &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; can be in multiple files in multiple servers on computers in different geographic locations &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Structure/Contents &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; highly structured like an Excel spreadsheet, and it's got rows and columns of data &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; can be unstructured, it can have many formats in files involved across disciplines, and may link to other resources &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Preparation &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; prepared by the end user for their own purposes &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; is often prepared by one group of people, analyzed by a second group of people, and then used by a third group of people, and they may have different purposes, and they may have different disciplines &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Longevity &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; kept for a specific amount of time after the project is over because there's a clear ending point. In the academic world it's maybe five or seven years and then you can throw it away &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; contains data that must be stored in perpetuity. Many big data projects extend into the past and future &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Measurements &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; measured with a single protocol using set units and it's usually done at the same time &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; is collected and measured using many sources, protocols, units, etc &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Reproducibility &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; be reproduced in their entirety if something goes wrong in the process &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; replication is seldom feasible &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Stakes &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; if things go wrong the costs are limited, it's not an enormous problem &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; can have high costs of failure in terms of money, time and labor &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Access &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; identified by a location specified in a row/column &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; unless it is exceptionally well designed, the organization can be inscrutable &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Analysis &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; analyzed together, all at once &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; is ordinarily analyzed in incremental steps &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+
+---
+
+# Challenges of working with very large datasets
+
+&lt;div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:400px; "&gt;&lt;table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; V &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Challenge &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Volume &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data scale &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Value &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data usefulness in decision making &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Velocity &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data processing: batch or stream &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Viscosity &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data complexity &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Variability &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data flow inconsistency &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Volatility &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data durability &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Viability &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data activeness &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Validity &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data properly understandable &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Variety &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; data heterogeneity &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+
+---
+
+# Thinking about big data workflows
+
+[William Cohen](http://www.cs.cmu.edu/~wcohen/) (Director, Research Engineering, Google) said the following:
+
+
+Working with big data is _not_ about:
+
+* Code optimization
+* Learning the details of today's hardware/software (they are evolving...)
+
+Working with big data _is_ about **understanding**:
+
+* The cost of what you want to do
+* What the tools that are available offer
+* How much can be accomplished with linear or nearly-linear operations 
+* How to organize your computations so that they effectively use whatever is fast
+* How to test/debug/verify with large data
+
+
+---
+
+
+
+
+
+class: inverse, center, middle
+
+## The **BIG DATA** problem
+
+---
+
+class: bottom
+background-image: url("img/moores.png")
+background-size: contain
+
+
+## Is Moore's Law Dead?
+
+---
+
+
+## Working on a single machine
+
+You are most likely using traditional data analysis tools, which are **single threaded** and run on **a single machine**. Is this enough???
+
+.pull-left[
+&lt;img src="img/r-logo.png" width=250&gt;
+]
+
+.pull-right[
+&lt;img src="img/python-logo.png"&gt;
+]
+
+--
+
+---
+
+## New Hardware 
+
+.pull-left[
+### Need
+
+* The demand for data processing will not be met by relying on the same technology. 
+* The key to modern data processing is **new semiconductors**
+  * Not just squeezing more transistors per area
+  * Need new compute architectures that are built and optimized for specialized functions
+* Specialized edge hardware for Edge Computing
+* While many declare Moore’s Law to be broken or no longer valid, in reality it’s not the law that is broken but rather a heat problem.
+]
+
+.pull-right[
+### What
+
+* Graphic Processing Units (GPUs)
+
+* Field Programmable Gate Arrays (FPGAs)
+
+* Data Processing Unites (DPUs)
+
+* Photonic computing
+
+]
+
+
+---
+
+## So, we can't store or process data on a single machine, what do we do?
+
+.center[
+&lt;img src="../01/img/medium-6.png" width=800&gt;
+]
+
+
+---
+
+## We distribute
+
+More CPUs, more memory, more storage!
+
+.center[
+&lt;img src="img/distribute-the-data.png" width=600&gt;
+]
+
+---
+
+class: center, middle, inverse
+
+# How do we do that?
+
+---
+
+## Simple, we use the **cloud**
+
+--
+
+.center[
+&lt;img src="img/cloud-providers.png" width=800&gt;
+]
+
+---
+
+## Cloud computing is a big deal!
+
+.pull-left[
+### Benefits
+
+* Provides access to low-cost computing
+
+* Costs are decreasing every year
+
+* Elastic
+
+* PAAS works!
+
+* Many other benefits...
+]
+
+
+.pull-right[
+&lt;img src="img/scale-up-scale-out.png"&gt;
+]
+
+---
+
+## What is the cloud?
+
+### \\kloud\\ noun
+
+**the practice of storing regularly used computer data on multiple servers that can be accessed through the Internet**
+
+--
+
+**Using someone else's computer(s)**
+
+---
+
+class: inverse, bottom
+background-image: url("img/cloud-nist.png")
+background-size: contain
+
+## NIST Definition
+
+---
+
+class: inverse, bottom
+background-image: url("img/cloud-service-models-traditional.png")
+background-size: contain
+
+
+---
+
+class: inverse, bottom
+background-image: url("img/cloud-service-models-hotel.png")
+background-size: contain
+
+
+---
+
+## The evolution of the Cloud
+
+&lt;div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:400px; "&gt;&lt;table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Yesterday &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Today &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Tomorrow &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Limited number of tools and vendors &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Many tools and vendors to work with &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Integrated tools and vendors &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; One platform - few devices &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Multiple platforms - many devices &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Connected platforms and devices &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Data is scarce but manageable &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Overabundance of data &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; Data is used for important business decisions &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; IT has major influence and control &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; IT has limited influence and control &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; IT is strategic to the business &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; People only work when they are at work &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; People work wherever they want &lt;/td&gt;
+   &lt;td style="text-align:left;width: 30em; "&gt; People have access to what they need, wherever they are &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+
+---
+
+class: inverse, bottom
+background-image: url("http://i2.cdn.turner.com/money/dam/assets/140903164019-cloud-data-center-thumb-1280x720.png")
+background-size: contain
+
+## What does the cloud look like?
+
+---
+
+## Virtual Visit to a Microsoft Azure Data Center
+
+.center[
+&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/80aK2_iwMOs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen&gt;&lt;/iframe&gt;]
+
+---
+
+class: inverse, bottom
+background-image: url("img/msft-boydton.png")
+background-size: contain
+
+## Microsoft Azure Data Center in Boydton, VA
+
+---
+
+## Loudon County, VA is called "CLoudon"
+
+* How data centers power VA's Loudon County: 
+https://gcn.com/articles/2018/10/12/loudoun-county-data-centers.aspx
+
+* The heart of "The Cloud" is in Virginia: https://www.cbsnews.com/news/cloud-computing-loudoun-county-virginia/
+
+* CBS Sunday Morning Visits the Home of the Internet in Loudoun County: https://biz.loudoun.gov/2017/10/30/cbs-sunday-morning-visits-loudoun/
+
+---
+
+class: inverse, bottom
+background-image: url("img/nova-datacenter-locations.png")
+background-size: cover
+
+##  70% of the world's internet traffic passes through Loudon County, VA
+
+
+
+
+---
+
+class: inverse, center middle
+
+## High Performance Computing (HPC)
+
+---
+
+## What is HPC all about
+
+.pull-left[
+&lt;img src="img/hpc-description.png"&gt;
+]
+
+.pull-right[
+### Uses
+* Science and research
+* Genomics and bioinformatics
+* Climate modeling
+* Hydrological analysis
+* Image analysis and processing
+* Video/Audio transcoding
+* Engineering stress analysis
+* Automobile crash simulations
+* Financial risk analysis
+* Oil and gas production
+
+... and much more!
+]
+
+---
+
+## Two main types of HPC workloads
+
+.pull-left[
+&lt;img src="img/hpc-workload.png" width=350&gt;
+]
+
+.pull-right[
+### Embarrasingly parallel
+* Nodes don't need to talk to each other, or very little cross-node communication
+* Usually a parameter sweep, a job splitting, or a search/comparison through data
+* Examples: monte carlo simulations, image/video rendering, sequence matching
+* Great workload for the cloud!
+
+### Tightly coupled
+* Nodes need to talk to each other constantly
+* Requires a fast interconnection network (low latency and high throughput)
+* Examples: automotive crash simulation, fluid dynamics, climate modeling, manufacturing modeling
+]
+
+---
+
+## Supercomputers
+
+.pull-left[
+&lt;img src="img/marck-pnnl.png" width=350&gt;
+]
+
+.pull-right[
+[Cascade Supercomputer](https://www.top500.org/system/178250/)
+&lt;img src="img/cascade.png"&gt;
+
+[List of the top 500 supercomputers across the globe](https://www.top500.org/)
+]
+
+
+---
+
+class: inverse, center, middle
+
+# Overview of services used in this class
+
+---
+
+class: bottom
+background-image: url("img/aws-services.png")
+background-size: contain
+
+## AWS
+
+---
+
+class: bottom, inverse
+background-image: url("img/azure-services.png")
+background-size: contain
+
+## Azure
+
+---
+
+## Services we will be using
+
+| Category | AWS Service | Azure Service | Description |
+| ---------| ----------- | ------------- | ----------- |
+| Compute (virtual machines) | [Elastic Compute Cloud (EC2) Instances](https://aws.amazon.com/ec2/) | [Virtual Machines](https://azure.microsoft.com/services/virtual-machines/) | Virtual servers allow users to deploy, manage, and maintain OS and server software. Instance types provide combinations of CPU/RAM. Users pay for what they use with the flexibility to change sizes. |
+| Storage | [Simple Storage Services (S3)](https://aws.amazon.com/s3/) | [Blob storage](https://docs.microsoft.com/azure/storage/blobs/storage-blobs-introduction) | Object storage service, for use cases including cloud applications, content distribution, backup, archiving, disaster recovery, and big data analytics. |
+| Big Data Processing | [EMR](https://aws.amazon.com/emr/) | [Databricks](https://azure.microsoft.com/services/databricks/) | Apache Spark-based analytics platform. |
+| Big Data Processing | [EMR](https://aws.amazon.com/emr/) | [HDInsight](https://azure.microsoft.com/services/hdinsight/) | Managed Hadoop service. Deploy and manage Hadoop clusters in Azure. |
+| Networking | Cloud virtual networking | [Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) | [Virtual Network](https://azure.microsoft.com/services/virtual-network/) | Provides an isolated, private environment in the cloud. Users have control over their virtual networking environment, including selection of their own IP address range, creation of subnets, and configuration of route tables and network gateways. |
+
+---
+
+## Services we _may_ use
+
+| Category | AWS Service | Azure Service | Description |
+| ---------| ----------- | ------------- | ----------- |
+| IoT Streaming | [Kinesis Firehose](https://aws.amazon.com/kinesis/data-firehose/), [Kinesis Streams](https://aws.amazon.com/kinesis/data-streams/) | [Event Hubs](https://azure.microsoft.com/services/event-hubs/) | Services that allow the mass ingestion of small data inputs, typically from devices and sensors, to process and route the data. |
+| Relational database | [RDS](https://aws.amazon.com/rds/) | [SQL Database](https://azure.microsoft.com/services/sql-database/)&lt;br/&gt;&lt;br/&gt;[Database for MySQL](https://azure.microsoft.com/services/mysql/)&lt;br/&gt;&lt;br/&gt;[Database for PostgreSQL](https://azure.microsoft.com/services/postgresql/) | Managed relational database service where resiliency, scale, and maintenance are primarily handled by the platform. |
+| NoSQL / Document DB | [DynamoDB](https://aws.amazon.com/dynamodb/)&lt;br/&gt;&lt;br/&gt;[SimpleDB](https://aws.amazon.com/simpledb/)&lt;br/&gt;&lt;br/&gt;[Amazon DocumentDB](https://aws.amazon.com/documentdb/) | [Cosmos DB](https://azure.microsoft.com/services/cosmos-db/) | A globally distributed, multi-model database that natively supports multiple data models: key-value, documents, graphs, and columnar. |
+
+---
+
+class: inverse, center, middle
+
+# Security Group and EC2 Demo
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
