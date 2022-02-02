@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 3 - Parallelization</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+    <script src="libs/kePrint-0.0.1/kePrint.js"></script>
+    <link href="libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 3 - Parallelization
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+## Agenda and Goals for Today
+
+* Questions on Lab 2 Deliverable and Homework 2
+* Scaling up and scaling out
+* Parallelization
+* Map and Reduce functions
+* Lab Preview: Parallelization with Python
+  * Use the `multiprocessing` module
+  * Implement synchronous and asynchronous processing
+* Homework Preview: Parallelization with Python
+  * Parallel data processing
+
+---
+
+# Lab 2 Issue
+
+- Some students faced issues with out of memory problems, which is a common big data issue!
+
+- How can we force a single machine to have more memory?
+
+- In Linux, memory can be constructed from two hardware sources, RAM (Random Access Memory) and hard drive (aka swap).
+
+  - This is also known as real memory vs. virtual memory.
+
+--
+
+How can we make a virtual memory swap space?
+
+--
+
+Use Linux!
+
+---
+
+# Linux Swap Creation
+
+```
+# manipulate the disk space and make a big file
+sudo fallocate -l 16G /[FILE_SYSTEM]/swapfile
+
+# make that swap file
+sudo mkswap /[FILE_SYSTEM]/swapfile
+
+# change permisssions... to what????
+sudo chmod 0600 /[FILE_SYSTEM]/swapfile
+
+# Turn on the swap
+sudo swapon /[FILE_SYSTEM]/swapfile
+
+# check that it worked using the command: htop
+```
+---
+
+# Useful Sys Admin Commands
+
+- If I launch an EC2 instance and add a fancy SSD to it, how do I actually use the SSD?
+
+[AWS documentation on mounting volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html)
+
+```
+# get info on the file system
+sudo file -s /dev/nvme1n1
+
+# make a new file system on device
+sudo mkfs -t xfs /dev/nvme1n1
+
+# make a new directory at root
+sudo mkdir /data
+
+# mount the new device file sysetm to the root
+sudo mount /dev/nvme1n1 /data
+
+# modify permissions so others can use the new folder
+sudo chmod 777 /data
+```
+
+How do I check existing file systems? `df`
+
+How do I check how much space in a folder? `du FILE_FOLDER`
+
+---
+
+# Glossary
+
+&lt;table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;"&gt; Term &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; Definition &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Local &lt;/td&gt;
+   &lt;td style="text-align:left;width: 40em; "&gt; Your current workstation (laptop, desktop, etc.), wherever you start the terminal/console application. &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Remote &lt;/td&gt;
+   &lt;td style="text-align:left;width: 40em; "&gt; Any machine you connect to via ssh or other means. &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; EC2 &lt;/td&gt;
+   &lt;td style="text-align:left;width: 40em; "&gt; Single virtual machine in the cloud where you can run computation (ephemeral) &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; SageMaker &lt;/td&gt;
+   &lt;td style="text-align:left;width: 40em; "&gt; Integrated Developer Environment where you can conduct data science on single machines &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Ephemeral &lt;/td&gt;
+   &lt;td style="text-align:left;width: 40em; "&gt; Lasting for a short time - any machine that will get turned off or place you will lose data &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;font-weight: bold;border-right:1px solid;"&gt; Persistent &lt;/td&gt;
+   &lt;td style="text-align:left;width: 40em; "&gt; Lasting for a long time - any environment where your work is NOT lost when the timer goes off &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+---
+
+# Typical real world scenarios
+
+--
+
+* You are a Data Scientist and you want to cross-validate your models. This involves running the model *1000 times* but each run takes over an hour.
+
+--
+
+* You are a genomics researcher and have been using small datasets of sequence data but soon you will receive a new type of sequencing data that is *10 times* as large. This means 10x more transcripts to process, but the processing for each transcript is similar.
+
+--
+
+* You are an engineer using a fluid dynamics package that has an option to run in parallel. So far, you haven't used this option on your workstation. When moving from 2D to 3D simulations, the simulation time has more than tripled so it may make sense to take advantage of the parallel feature
+
+--
+
+* You are a Data Scientist at the Federal Reserve and you have millions of text to process. So far, you have only executed NLP on thousands of articles and have not implemented machine learning models on them.
+
+---
+
+class: inverse, center, middle
+
+# Parallel Programming
+
+---
+
+# Linear vs. Parallel
+
+.pull-left[
+## Linear
+
+1. A program starts to run
+1. The program issues an instruction
+1. The instruction is executed
+1. Steps 2 and 3 are repeated
+1. The program finishes running
+]
+
+--
+
+.pull-right[
+## Parallel
+
+1. A program starts to run
+1. The program **divides up** the work into chunks of instructions and data
+1. Each chunk of work is executed independently
+1. The chunks of work are reassembled
+1. The program finishes running
+]
+
+---
+
+## Linear vs. Parallel
+
+.pull-left[
+&lt;img src="img/linear.png" width=400&gt;
+]
+.pull-right[
+&lt;img src="img/parallel.png" width=400&gt;
+]
+
+
+---
+
+## Linear vs. Parallel
+
+From a data science perspective
+
+.pull-left[
+
+### Linear
++ The data remains monolithic
++ Procedures act on the data sequentially
+    - Each procedure has to complete before the next procedure can start
++ You can think of this as a single pipeline
+]
+.pull-right[
+### Parallel
++ The data can be split up into chunks
++ The same procedures can be run on each chunk at the same time
++ Or, independent procedures can run on different chunks at the same time
++ Need to bring things back together at the end
+]
+
+--
+
+### What are some examples of linear and parallel data science workflows?
+
+---
+
+## Embarrasingly Parallel
+
+It's **easy** to speed things up when:
+
+* You need to calculate the same thing many times
+* Calculations are **independent** of each other
+* Each calculation takes a decent amount of time
+
+Just run **multiple calculations at the same time**
+
+---
+
+## Embarrasingly Parallel
+
+The concept is based on the old middle/high school math problem:
+
+&gt;If 5 people can shovel a parking lot in 6 hours, how long will it take 100 people to shovel the same parking lot?
+
+Basic idea is that many hands (cores/instances) make lighter (faster/more efficient) work of the same problem, as long as the effort can be split up appropriately into nearly equal parcels
+
+.footnote[The classical answer to the problem is 18 minutes]
+
+---
+
+# Is this Embarassingly Parallel?
+
+.pull-left[
+
+## Yes
+
+* Group by analysis
+* Simulations
+* Resampling / Bootstrapping
+* Optimization
+* Cross-validation
+* Training bagged models (like Random Forests)
+* Multiple chains in a Bayesian MCMC
+* Scoring (predicting) using trained models
+
+]
+
+
+.pull-right[
+
+## No
+
+* SQL Operations
+* Inverting a matrix
+* Training linear regression
+* Training logistic regression
+* Training trees
+* Training neural nets
+* Training boosted models (like gradient boosted trees)
+* Each chain in a Bayesian MCMC
+* Most things time series
+
+]
+
+
+---
+
+## Pros and cons of parallelization
+
+.pull-left[
+
+### Pros
+
++ Higher efficiency
++ Using modern infrastructure
++ Scalable to larger data, more complex procedures
+    - _proviso_ procedures are embarassingly parallel
+]
+.pull-right[
+
+### Cons
+
++ Higher programming complexity
+    - Need proper software infrastructure (MPI, Hadoop, etc)
+    - Need to ensure right packages/modules are distributed across processors
++ Need to account for a proportion of jobs failing, and recovering from them 
+    - Hence, Hadoop/Spark and other technologies
++ Higher setup cost in terms of time/expertise/money
+
+]
+
+--
+
+There are good solutions today for most of the cons, so the pros have it and so this paradigm is widely accepted and implemented
+
+
+---
+
+
+
+---
+class: middle,center,inverse
+
+# Parallel Programming Models
+
+---
+
+## Distributed memory / Message Passing Model
+
+.center[
+&lt;img src="img/parallel1.png" width=600&gt;
+]
+
+---
+
+## Data parallel model
+
+.center[
+&lt;img src="img/parallel2.png" width=600&gt;
+]
+---
+
+## Hybrid model
+
+.center[
+&lt;img src="img/parallel4.png" width=500&gt;
+]
+.center[
+&lt;img src="img/parallel3.png" width=500&gt;
+]
+---
+
+## Partitioning data
+
+.center[
+&lt;img src="img/parallel5.png" width=600&gt;
+]
+
+---
+
+## Designing parallel programs
+
++ Data partitioning
++ Communication
++ Synchronization / Orchestration
++ Data dependencies
++ Load balancing
++ Input and Output (I/O)
++ Debugging
+
+--
+
+A lot of these components are data engineering and DevOps issues
+
+--
+
+Infrastructures have standardized many of these and have helped data scientists implement parallel programming much more easily
+
+--
+
+We'll see in the lab how the `multiprocessing` module in Python makes parallel processing on a machine quite easy to implement
+
+
+
+---
+
+
+class: inverse, center, middle
+
+# Parallel Computing
+
+---
+background-image: url("img/scale1.png")
+background-size: contain
+
+
+---
+background-image: url(img/scale2.png)
+background-size: contain
+
+---
+background-image: url(img/scale3.png)
+background-size: contain
+
+---
+background-image: url(img/scale4.png)
+background-size: contain
+
+---
+background-image: url(img/scale5.png)
+background-size: contain
+
+---
+background-image: url(img/scale6.png)
+background-size: contain
+
+
+---
+
+
+
+class: inverse, center, middle
+
+# Functional Programming
+## Map and Reduce
+
+---
+background-image: url(img/parallel-time.png)
+background-size: contain
+
+---
+
+## Components of a parallel programming workflow
+
+1. Divide the work into chunks
+1. Work on each chunk separately
+1. Reassemble the work
+
+This paradigm is often referred to as a **map-reduce framework**, or, more
+descriptively,  the **split-apply-combine** paradigm
+
+---
+background-image: url(img/split-apply-combine.png)
+background-size: contain
+
+---
+background-image: url(img/split-apply-combine-2.png)
+background-size: contain
+
+---
+class: inverse, center, middle
+
+# Map
+
+---
+
+## Map
+
+The **map** operation is a 1-1 operation that takes each split and processes it
+
+The **map** operation keeps the same number of objects in its output that were present in its input
+
+
+.center[
+&lt;img src="img/map1.png" width=520&gt;
+]
+
+---
+
+## Map
+
+.center[
+&lt;img src="img/map2.png" width=600&gt;
+]
+
+
+The operations included in a particular **map** can be quite complex, involving multiple steps. In fact, you can implement a _pipeline_ of procedures within the **map** step to process each data object.
+
+The main point is that the _same_ operations will be run on each data object in the **map** implementation
+
+---
+
+## Map
+
+Some examples of a **map** operation are
+
+1. Extracting a standard table from online reports from multiple years
+1. Extracting particular records from multiple JSON objects
+1. Transforming data (as opposed to summarizing it)
+1. Run a normalization script on each transcript in a GWAS dataset
+1. Standardizing demographic data for each of the last 20 years against the 2000 US population
+
+.center[
+&lt;img src="img/map3.png" width=600&gt;
+]
+
+
+---
+
+## Reduce
+
+The **reduce** operation takes multiple objects and _reduces_ them to a (perhaps) smaller number of objects using transformations that aren't amenable to the **map** paradigm.
+
+These transformations are often serial/linear in nature
+
+The **reduce** transformation is usually the last, not-so-elegant transformation needed after most of the other transformations have been efficiently handled in a parallel fashion by **map**
+
+.center[
+&lt;img src="img/reduce2.png" width=600&gt;
+]
+
+
+---
+
+## Reduce
+
+The **reduce** operation requires
+
+&lt;ol type='a'&gt;
+&lt;li&gt; An &lt;i&gt;accumulator&lt;/i&gt; function, that will update serially as new data is fed into it
+&lt;li&gt; A sequence of objects to run through the accumulator function
+&lt;li&gt; A starting value from which the accumulator function starts
+&lt;/ol&gt;
+
+Programmatically, this can be written as
+
+.center[
+&lt;img src="img/reduce3.png" width=600&gt;
+]
+
+
+---
+
+## Reduce
+
+The **reduce** operation works serially from "left" to "right", passing each object successively through the accumulator function.
+
+For example, if we were to add successive numbers with a function called `add`...
+
+.center[
+&lt;img src="img/reduce4.png" width=600&gt;
+]
+
+
+---
+
+## Reduce
+
+Some examples:
+
+1. Finding the common elements (_intersection_) of a large number of sets
+1. Computing a table of group-wise summaries
+1. Filtering
+1. Tabulating
+
+---
+class: middle,center,inverse
+
+# Map &amp; Reduce
+
+---
+
+## map-reduce
+
+Combining the **map** and **reduce** operations creates a powerful pipeline that can handle a diverse range of problems in the Big Data context
+
+.center[
+&lt;img src="img/mr1.png" width=600&gt;
+]
+
+
+---
+class: middle,center,inverse
+
+# Parallelization and map-reduce
+
+---
+
+## Parallelization and map-reduce are bed-mates
+
+.center[
+&lt;img src="img/pmr1.png" width=600&gt;
+]
+
+
+--
+
+One of the issues here is, how to split the data in a "good" manner so that the map-reduce framework works well
+
+
+
+
+---
+
+## Lab / Homework Preview (if time permits)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
