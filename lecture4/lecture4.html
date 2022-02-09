@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 4 - MapReduce, Hadoop, and Hadoop Streaming</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 4 - MapReduce, Hadoop, and Hadoop Streaming
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+.pull-left[
+
+## Looking back
+
+* Linux and version control
+
+* Python and parallelization
+
+* Intro to the Cloud
+
+* Setup of AWS Services
+
+]
+
+.pull-right[
+## Today
+
+* Course Logistics
+
+* Questions about Lab 3 and HW 3
+
+* Intro to Hadoop and MapReduce
+
+* Hadoop Streaming
+
+* Demo (depending on time): 
+  * Start a cluster on AWS
+  * Run a sample Hadoop job
+  * Run a simulated mapreduce job using the command line
+  * Run a Hadoop Streaming job
+]
+
+---
+
+## Course Logistics
+
+* **Start assignments as soon as they are posted so you can ask questions on Canvas and attend office hours for help**
+* Make sure you submit the url of your repo on Canvas! This is critical so we have a record of your completion on Canvas. No exceptions!
+* **Attend in-person lab on time!** We will be launching resources from this week forward that take 10 minutes to complete. Any late students will have to catch up!
+
+---
+
+## Questions about Lab 3 and HW 3
+
+[discussion thread](https://georgetown.instructure.com/courses/142215/discussion_topics/819185)
+
+---
+
+## AWS Academy
+
+* Credit limit - $100
+* Course numbers:
+
+  * Course #1 - 12142
+  * Course #2 - 12143
+  
+STAY WITH COURSE 12142 UNLESS YOU HAVE RUN OUT OF CREDITS OR &gt;$90 USED! 
+
+Note that you will have to repeat several setup steps:
+
+- security group
+- EC2 keypair uploading (the AWS part only)
+- sagemaker setup
+- any S3 uploading or copying as well as bucket creation as necessary
+- EMR configuration (you will know what this means soon)
+
+---
+
+
+## Yesterday's hardware for big data processing
+
+.pull-left[
+### The 1990's solution
+**One big box, all processors share memory**
+
+This was:
+* Very expensive
+* Low volume
+
+It was all _premium_ hardware.
+**And yet is still was not big enough!**
+
+]
+
+
+.pull-right[
+&lt;img src="img/yesterdays-hardware.jpg" width=350&gt;
+]
+
+---
+
+## Enter commodity hardware!
+
+.pull-left[
+### Consumer-grade hardware
+Not expensive, premium nor fancy in any way
+
+**Desktop-like servers are cheap, so buy a lot!**
+
+* Easy to add capacity
+* Cheaper per CPU/disk
+
+### But
+
+Need more complex software to be able to run on lots of smaller/cheaper machines.
+
+]
+
+
+.pull-right[
+&lt;img src="img/hardware-big-data.jpg" width=350&gt;
+]
+
+
+---
+
+## Problems with cheap hardware
+
+.pull-left[
+### Failures
+* 1-5% hard drives/year
+* 0.2% DIMMs/year
+
+### Network speed vs. shared memory
+* Much more latency
+* Network slower than storage
+
+### Uneven performance
+]
+
+.pull-right[
+&lt;img src="img/cheap-hw.jpg"&gt;
+]
+
+
+---
+
+class: center, middle
+
+# **Big data processing systems build on average machines which fail pretty often!**
+
+### Hang on to this thought!
+
+---
+
+## Meet [Doug Cutting](https://en.wikipedia.org/wiki/Doug_Cutting)
+
+.pull-left[
+&lt;img src="img/doug-cutting.jpeg" width=350&gt;
+]
+
+.pull-right[
+* In 1997, Doug Cutting started writing the first version of [Lucene](https://lucene.apache.org/) (a full text search library). 
+* In 2001, Lucene moves to the [Apache Software Foundation](https://apache.org/), and [Mike Cafarella](https://en.wikipedia.org/wiki/Mike_Cafarella) joins Doug and create a Lucene subproject called [Nutch](http://nutch.apache.org/), a web-crawler. Nutch uses Lucene to index the contents of a web page as it crawls it.
+* Nutch and Lucene were deployed on a **single machine** (single core processor, 1GB RAM, 8 HDDs ~ 1TB), achieved decent performance, but they needed something that would be scalable enough to be able to index the web.
+]
+
+---
+
+## Doug and Mike set out to to improve Nutch
+
+They needed a to build some kind of distributed storage layer to be the foundation of a scalable system. The came up with these requirements:
+
+* Schemaless 
+* Durable
+* Capable of handling component failure
+* Automatically rebalanced
+
+--
+
+**Does this sound familiar?**
+
+---
+
+class: inverse, center, middle
+
+# In 2003 and 2004 Google publishes two seminal papers
+
+---
+
+.pull-left[
+&lt;img src="img/gfs-paper.png"&gt;
+]
+
+.pull-right[
+### The Google File System (GFS) Paper
+
+It describes how Google stored its information, at scale, using a reliable and high-available storage system can be built on commodity machines considering that failures are the norm rather than the exception.
+
+GFS is:
+* optimized for special application environment
+* fault tolerance is built in
+* centralized metadata management
+* simplify the operation semantics
+* decouple I/O and metadata operations
+]
+
+
+---
+
+.pull-left[
+&lt;img src="img/mr-paper.png"&gt;
+]
+
+.pull-right[
+### The Google MapReduce Paper
+
+Describes how Google processes data, at scale using MapReduce, a paradigm based on functional programming. MapReduce is an approach and infrastructure for doing things at scale. MapReduce is two things:
+
+1. A data processing model named MapReduce 
+1. A distributed, large scale data processing paradigm.
+
+Which provides the following benefits:
+* Moves the computation to the data
+* Automatic parallelization and distribution
+* Fault tolerance
+* I/O scheduling
+* Integrated status and monitoring
+
+]
+
+---
+
+
+.pull-left[
+&lt;img src="img/mr-paper.png"&gt;
+]
+
+.pull-right[
+** The MapReduce model**
+1. Map function takes an input pair and produces a set of intermediate key/value pairs. The MapReduce library groups together all intermediate values associated with the same intermediate key and passes them to the Reduce function.
+2. Reduce function accepts an intermediate key and a set of values for that key. It merges together these values to form a possibly smaller set of values. Typically just zero or one output value is produced per Reduce invocation.
+
+** The advantages**
+1. The model is relatively easy to use, even for programmers without experience with parallel and distributed systems since it handles parallelization, fault-tolerance, locality optimization, and load balancing.
+2. A large variety of problems are easily expressible as MapReduce computations.
+3. This paper developed an implementation of MapReduce that scales to large clusters of machines comprising thousands of machines. 
+]
+
+---
+
+## The genesis of _Hadoop_: an implementation of Google's ideas
+
+* Using the Google papers as a specification, they started implementing the ideas in Java in 2004 and created the _Nutch Distributed File System (NDFS)_.
+* The main purpose of this file system was to abstract the cluster's storage so that it presents itself as a single, reliable, file system.
+* Another first class featuer of the system was its ability to handle failures without operator interventions and it can run on inexpensive, commodity hardware components
+* In 2006, Hadoop was created by moving NDFS (which becamie HDFS) and the MapReduce implementation out of Lucene. Hadoop 1.0 was released. 1.8TB of data sorts in 188 nodes in 48hours. Doug Cutting goes to work at Yahoo!
+* In 2007, LinkedIn, Twitter and Facebook started adopting this new tool and contributing back to the project. Yahoo! is running their first production Hadoop cluster with 1,000 machines.
+* In 2008, Yahoo! is running a 10,000 core cluster. World record created for fastest sorting of 1Tb in 209 seconds using a 910 node cluster. Cloudera is formed.
+* In 2009, Yahoo!'s cluster is 24,000 cores and claims to sort 1TB in 62 seconds. Amazon introduces Elastic MapReduce. HDFS and MapReduce become their own separate sub-projects.
+* In 2010, Yahoo!'s cluster is 4,000 and ~70PB, Facebook's is 2,300 nodes and ~40PB. 
+* In 2011, Yahoo!'s cluster is 42,000 nodes 
+* In 2017, Twitter Hadoop cluster has over 500 Petabytes of data. Biggest cluster over 10k nodes. [Read more here](https://blog.twitter.com/engineering/en_us/topics/infrastructure/2017/the-infrastructure-behind-twitter-scale)
+
+---
+
+## Trivia question: why is it named Hadoop?
+
+
+--
+
+
+.pull-left[
+&lt;img src="img/nyt-hadoop2.png"&gt;
+]
+
+
+.pull-right[
+&lt;img src="img/apache-hadoop-logo.svg"&gt;
+]
+
+---
+
+## Tangent: Why Open Source Matters!
+
+The Google File System is not popular as a program among the business world... why???
+
+Hadoop has become the standard for cluster storage because it is open source!!
+
+Who has heard of Colossus? (Google's next version of GFS)
+
+[Review of GFS vs. Hadoop](https://pierrezemb.fr/posts/colossus-google/)
+
+---
+
+## What is Hadoop 1.0: MapReduce Engine and HDFS
+
+.pull-left[
+### MapReduce performs the computations and manages cluster
+* The _Job Tracker_ is the master planner
+* The _Task Tracker_ runs each task
+
+### HDFS stores the data
+]
+
+.pull-right[
+&lt;img src="img/michael-noll-hadoop-1-0.png"&gt;
+]
+---
+
+
+
+.pull-left[
+## Hadoop 1.0 Problems
+
+* Monolithic
+* MapReduce had too many responsibilites
+  * Assigning cluster resources
+  * Managing job execution
+  * Doing data processing
+  * Interfacing with client applications
+* Only supported MapReduce
+* Had a single _NameNode_ to manage the cluster (single point of failure)
+* Batch oriented and extremely inefficient with iterative queries
+
+&lt;img src="img/arch1-0.png"&gt;
+]
+
+--
+
+.pull-right[
+## YARN &amp; Hadoop 2.0
+
+* Cluster management capability gets pulled out of MapReduce and becomes YARN (Yet Anothe Resource Negotiator), decoupling cluster operations from data pipeline
+* Allowed for other applications to run on a cluster
+* Hadoop 2.0 was released in 2013
+
+&lt;img src="img/arch2-0.png"&gt;
+]
+
+
+---
+
+.pull-left[
+### A MapReduce Job (1.0)
+&lt;img src="img/how-hadoop-runs-1-0.png"&gt;
+]
+
+.pull-right[
+### A MapReduce Job (2.0+)
+&lt;img src="img/hddg_0701.png"&gt;
+]
+
+
+---
+
+## How YARN manages the Cluster
+
+.center[
+&lt;img src="img/hddg_0402.png" width=550&gt;
+]
+
+---
+
+## The Hadoop Architecture is Scalable
+
+.pull-left[
+&lt;img src="img/dawh_0202.png"&gt;
+]
+
+.pull-right[
+&lt;img src="img/hadoop-doesnt-care-about-data-size.png"&gt;
+]
+
+---
+
+
+## Hadoop 3.0 (Released 2017)
+
+
+* Supports multiple standby NameNodes.
+* Supports multiple NameNodes for multiple namespaces.
+* Storage overhead reduced from 200% to 50%
+* Supports GPUs
+* Supports for Microsoft Azure Data Lake and Aliyun Object Storage System file-system connectors
+* Rewrite of Hadoop Shell 
+* MapReduce task Level Native Optimization.
+* Introduces more powerful YARN
+
+
+---
+
+class: center, middle
+
+
+&lt;img src="img/hadoop-ecosystem.png"&gt;
+
+The Current Hadoop Ecosystem: https://hadoopecosystemtable.github.io/
+
+---
+
+class: inverse, center, middle
+
+# Let's revisit Map and Reduce and learn more about MapReduce
+
+---
+
+## Map
+
+.pull-left[
+&lt;img src="img/dawh_0203.png"&gt;
+]
+
+.pull-right[
+### Map tasks are broken into the following phases:
+* **record reader:** translates the _input split_ generated by the _input format_ into records or key/value pairs
+* **map:** function that executes on every input record
+* **combiner:** acts as a _localized_ reducer to pre-aggregate within the map phase
+* **partitioner:** takes intermediate key/value pairs from the mapper (or combiner if used) and splits them up into shards, one shard per reducer
+]
+
+---
+
+## Reduce
+
+.pull-left[
+&lt;img src="img/dawh_0204.png"&gt;
+]
+
+
+.pull-right[
+### Reduce tasks are broken into the following phases:
+* **shuffle and sort:** this phase takes the output files written by all of the partitioners and downloads the files to the local node where the _reducer_ code will run
+* **reducer:** function that executes on every group of records for the same key
+* **output format:** translates the final key/value pair and writes out to a file by a record writer
+]
+
+
+---
+
+## Combining Everything into MapReduce
+
+.center[
+&lt;img src="img/dawh_0205.png"&gt;
+]
+
+---
+
+class: inverse, center, middle
+
+# Some typical MapReduce patterns
+
+---
+
+## Map Only
+
+.pull-left[
+&lt;img src="img/hddg_0205.png"&gt;
+]
+
+.pull-right[
+### Examples of map-only jobs:
+* Filtering
+* Data reorganization 
+* Running a task in an embarrassingly parallel way
+]
+
+---
+
+## Map and Reduce
+
+.pull-left[
+### Single reducer 
+&lt;img src="img/hddg_0203.png"&gt;
+]
+
+.pull-right[
+### Multiple reducers 
+&lt;img src="img/hddg_0204.png"&gt;
+]
+
+---
+.pull-left[
+## Benefits of Hadoop/MapReduce
+
+* Fault tolerance
+
+* Map and Reduce functions are simple to understand and easy to program
+]
+
+
+.pull-right[
+## Limitations of Hadoop/MapReduce
+
+* Everything has to be expressed in a map or reduce, and sometimes you can't
+
+* There is no control over the order in which map or reduce run
+
+* Data is not indexed
+
+* High overhead
+
+* You cannot leverage parallelism if you have an extremely large number of very small files (smaller than a single block)
+
+* Only suited for batch-processing, not real-time
+]
+
+
+
+
+
+---
+
+
+class: inverse, center, middle
+
+# Working with your data in a cluster
+
+---
+
+## Everything begins and ends in a distributed filesystem
+
+.center[
+&lt;img src="img/dawh_0208.png" width=850&gt;
+]
+
+---
+
+## Distributed filesystems
+
+.center[
+&lt;img src="img/distributed-file-systems.png" width=850&gt;
+]
+
+---
+
+## Cloud Object Storage vs HDFS
+
+* Independent scalability
+
+* Integration via simple REST API calls
+
+* Lower cost
+
+* No single point of failure
+
+
+---
+
+## Cloud based Hadoop Clusters
+
+Amazon Elastic MapReduce (EMR) and Azure HDInsight
+
+.pull-left[
+### On Premises
+&lt;img src="img/dawh_0202.png"&gt;
+]
+
+.pull-right[
+### Cloud Based (note the storage layer)
+&lt;img src="img/cloud-hadoop-arch.png"&gt;
+]
+
+
+---
+
+## Accessing Data in Distributed Object/File System
+
+### For files in the _Cluster HDFS_
+
+* `directory/data/` which is a shortcut to
+* `/user/hadoop/directory/data/`
+
+### For files in _Amazon S3_
+
+The service name is _S3_ and the data container is called a "bucket (`bucket_name`)"
+* `s3://bucket_name/directory/data/`
+ 
+### For Files in Azure Blob
+
+The service name is _Azure Storage Account_ (`your_account`) and the data container is called a "container (`container`)". There can be many containers in a storage account.
+* `wasb://container@your_account.blob.core.windows.net/directory/data/`
+
+---
+
+## HDFS Essential commands
+
+What commands have we discussed about the Linux file system that we want for HDFS?
+
+--
+
+
+```bash
+# list files
+hdfs dfs -ls &lt;hdfs path&gt;
+
+# make directories
+hdfs dfs -mkdir &lt;folder location&gt;
+
+# touch an empty file
+hdfs dfs -touchz &lt;hdfs path&gt;
+
+# "put" file to hdfs
+hdfs dfs -put &lt;other file path&gt; &lt;dest hdfs path&gt;
+
+# "get" file from hdfs
+hdfs dfs -get &lt;other file path&gt; &lt;dest hdfs path&gt;
+```
+
+---
+
+## HDFS Essential Commands
+
+
+```bash
+# other flag commands, after command and subcommand
+# hdfs dfs .........
+-cat &lt;hdfs path&gt; #print contents of file
+-mv &lt;old hdfs path&gt; &lt;new hdfs path&gt; # move file/folder
+-rm &lt;hdfs path&gt; #only one file
+-rmr &lt;hdfs path&gt; # recursive flag!
+-chmod 777 &lt;hdfs path&gt; # set permissions
+-setfacl -m default:user:sqoop:rwx &lt;hdfs path&gt; # access control list
+```
+
+[Review common commands here](https://www.geeksforgeeks.org/hdfs-commands/)
+[More common commands](https://mindmajix.com/hadoop-hdfs-commands-with-examples)
+
+---
+
+## How to programmatically interact with HDFS from python?
+
+* Use a python library (hdfs, snakebite, pydoop)
+
+* What I do...
+
+--
+
+* subprocess to call the real functions!
+
+
+```python
+import subprocess
+
+# local path of the file
+local_path = '/home/hadoop/test_dir/myfile.txt'
+
+# can be a new file name or a just folder destination
+hdfs_path = '/user/hadoop/data_folder/'
+
+# construct string command to execute in linux
+linux_command = f'hdfs dfs -put {local_path} {hdfs_path}'
+
+# run in linux, grab result code and message
+result_code, result_message = subprocess.getstatusoutput(linux_command)
+
+# raise an error if command did not exit properly
+if result_code != 0:
+  raise TypeError(f'exit code: {result_code}, {result_message}')
+```
+
+---
+
+## Writing MapReduce applications
+
+Hadoop is written in Java and provides a Java API that allows you to specify the following:
+
+* The input and output data locations in your distributed object/file system
+
+* The Map and Reduce functions which are providede in the form of Java classes
+
+* Many kinds of job parameters and configurations
+
+--
+
+Oh no! What if I want to use other programming languages?
+
+
+---
+
+class: center, middle
+background-image: url("img/java-logo.png")
+background-size: contain
+
+--
+
+&lt;img src="img/no-sign.png" width=400&gt;
+
+---
+
+class: middle, inverse
+background-image: url("img/stream_1024.gif")
+background-size: cover
+
+## Introducing Hadoop Streaming
+
+--
+
+.center[
+&lt;img src="img/3x.png" width=400&gt;
+]
+
+---
+
+## The name _Hadoop Streaming_ comes from the _Unix Streams_
+
+.center[
+&lt;img src="img/unix-streams.png"&gt;
+]
+
+
+---
+
+## Hadoop Streaming allows you to run _any executable script_ on the Hadoop Framework
+
+It uses an existing Java program to run non-java programs!
+
+.center[
+&lt;img src="img/dawh_0301.png" width=700&gt;
+]
+
+Keys and values can be single or compound
+---
+
+.pull-left[
+## Advantages of Hadoop Streaming
+
+* Using existing code-base (non Java)
+
+* Leveraging Hadoop framework to scale out
+
+]
+
+
+.pull-right[
+## Limitations of Hadoop Streaming
+
+* No combiner or partitioner, just map -&gt; shuffle-sort -&gt; reduce
+
+* Everything is text. Your programs have to parse everything appropriately and convert strings to other data types as needed. You also have manually create the key/value pair for output.
+
+* If using R or Python, you must limit your programs to the base libraries.
+]
+
+
+
+---
+
+
+## Basic Python Mapper
+
+
+```python
+#!/usr/bin/env python
+
+import sys
+
+if __name__ == "__main__":
+    for line in sys.stdin:
+        for word in line.split():
+            sys.stdout.write("{}\t1\n".format(word))
+```
+
+
+* The first line makes this an executable Python script
+* Read in line
+* Split line by space into single words
+* For every line: produce an output in the form of `word\t1` where `\t` is a tab
+* Output is always a key and value pair!
+
+---
+
+## Basic Python Reducer
+
+
+.pull-left[
+
+```python
+#!/usr/bin/env python
+
+import sys
+
+def stdout(key, val):
+  sys.stdout.write(f"{key}\t{val}\n")
+
+if __name__ == '__main__':
+    curkey = None
+    total = 0
+    for line in sys.stdin:
+        key, val = line.split("\t")
+        val = int(val)
+
+        if key == curkey:
+            total += val
+        else:
+            if curkey is not None:
+                 stdout(curkey, total)
+
+            curkey = key
+            total = val
+
+    stdout(curkey, total)
+```
+]
+
+.pull-right[
+* The first line makes this an executable Python script
+* Make stdout function 
+* Read in line and stores in memory
+* Look at the key from the key/value
+* Read next line and compare key
+* Keep reading lines and storing lines in memory until the key is different
+* When new key is received, take all the lines from the previous key and do something and write out result
+* Repeat until all lines are processed
+]
+
+
+---
+
+
+
+```bash
+hadoop jar /usr/lib/hadoop/hadoop-streaming.jar \
+-files basic-mapper.py,basic-reducer.py \
+-input [[input-location]] \
+-output [[output-location]] \
+-mapper basic-mapper.py \
+-reducer basic-reducer.py
+```
+
+* `hadoop jar /usr/lib/hadoop/hadoop-streaming.jar` launches Hadoop with the `hadoop-streaming.jar` 
+
+* `-files /home/hadoop/hadoop-streaming/basic-mapper.py,/home/hadoop/hadoop-streaming/basic-reducer.py` tells the job to "ship" the executable mapper and reducer scripts (the actual filename and absolute path) to every node on the cluster. **This line must always be second when you need to ship files with your job.**
+
+* `-input [[input-location]]` tells the Hadoop the location of your source data in a distributed object/filesystem. If you specify a directory, all files in the directory will be used as inputs
+
+* `-output [[output-location]]` tells the Hadoop the location of your output data in a distributed object/filesystem.  **This parameter is just a name of a location, and it must not exist before running the job otherwise the job will fail.** 
+
+* `-mapper basic-mapper.py`  and `reducer basic-reducer.py` specify the commands to run as a mapper and reducer, respectively. **These must be shell scripts or native Linux commands.** If you are using a script, you must "ship" it to the nodes with the `-files` parameter above.
+
+---
+
+## Gotcha's
+
+* The output location of the job (HFDF, S3, Blob) must *not exist* before running a job. You will get an error if you try to write out to an existing/non-empty location
+
+* You have to _ship_ or _package_ your executables with the job.
+
+* Hadoop/Java error messages can be cryptic and only give you errors regarding the framework. If you need to debug your script you will need to look at the stdout/stderr logs
+
+* You need to specify the full path name of your mapper and reducer scripts
+
+
+---
+
+## Example code
+
+```
+hadoop jar /usr/lib/hadoop/hadoop-streaming.jar \
+-files basic-mapper.py,basic-reducer.py \
+-input /user/hadoop/in_data \
+-output /user/hadoop/in_data \
+-mapper basic-mapper.py \
+-reducer basic-reducer.py
+```
+
+---
+
+## Hadoop References
+
+
+* Hadoop 3.3.1: https://hadoop.apache.org/docs/r3.3.1/
+
+* HDFS Filesystem Commands: https://hadoop.apache.org/docs/r3.3.1/hadoop-project-dist/hadoop-common/FileSystemShell.html
+
+* Hadoop Streaming
+https://hadoop.apache.org/docs/r3.3.1/hadoop-streaming/HadoopStreaming.html
+
+---
+
+## Cluster Demo (if there is time)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
