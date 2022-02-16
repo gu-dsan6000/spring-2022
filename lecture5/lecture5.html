@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 5 - Hadoop and Hive</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 5 - Hadoop and Hive
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+## Goals
+
+* Course Logistics
+
+* Review of solution for HW 3
+
+* Questions about Lab 4 and HW 4
+
+* Review of Hadoop Streaming and HDFS
+
+* Project Introduction
+
+* SQL Quick Intro
+
+* Hive
+
+* Demo (if time permits)
+
+---
+
+## Course Logistics
+
+* **Start assignments as soon as they are posted so you can ask questions on Canvas and attend office hours for help**
+* Make sure you submit the url of your repo on Canvas! This is critical so we have a record of your completion on Canvas. No exceptions!
+* **Attend in-person lab on time!** We will be launching resources from this week forward that take 10 minutes to complete. Any late students will have to catch up!
+
+---
+
+## AWS Academy
+
+* Credit limit - $100
+* Course numbers:
+
+  * Course #1 - 12142
+  * Course #2 - 12143
+  
+STAY WITH COURSE 12142 UNLESS YOU HAVE RUN OUT OF CREDITS OR &gt;$90 USED! 
+
+Note that you will have to repeat several setup steps:
+
+- security group
+- EC2 keypair uploading (the AWS part only)
+- sagemaker setup
+- any S3 uploading or copying as well as bucket creation as necessary
+- EMR configuration (you will know what this means soon)
+
+---
+
+## Live review of solution for HW 3
+
+[soln notebook](https://github.com/bigdatateaching/assignment-parallelization/blob/main/assignment_soln.ipynb)
+
+---
+
+## Questions about Lab 4 and HW 4
+
+[discussion thread](https://georgetown.instructure.com/courses/142215/discussion_topics/819186)
+
+---
+
+## Basic Python Mapper
+
+
+```python
+#!/usr/bin/env python
+
+import sys
+
+if __name__ == "__main__":
+    for line in sys.stdin:
+        for word in line.split():
+            sys.stdout.write("{}\t1\n".format(word))
+```
+
+
+* The first line makes this an executable Python script
+* Read in line
+* Split line by space into single words
+* For every line: produce an output in the form of `word\t1` where `\t` is a tab
+* Output is always a key and value pair!
+
+---
+
+## Basic Python Reducer
+
+
+.pull-left[
+
+```python
+#!/usr/bin/env python
+
+import sys
+
+def stdout(key, val):
+  sys.stdout.write(f"{key}\t{val}\n")
+
+if __name__ == '__main__':
+    curkey = None
+    total = 0
+    for line in sys.stdin:
+        key, val = line.split("\t")
+        val = int(val)
+
+        if key == curkey:
+            total += val
+        else:
+            if curkey is not None:
+                 stdout(curkey, total)
+
+            curkey = key
+            total = val
+
+    stdout(curkey, total)
+```
+]
+
+.pull-right[
+* The first line makes this an executable Python script
+* Make stdout function 
+* Read in line and stores in memory
+* Look at the key from the key/value
+* Read next line and compare key
+* Keep reading lines and storing lines in memory until the key is different
+* When new key is received, take all the lines from the previous key and do something and write out result
+* Repeat until all lines are processed
+]
+
+
+---
+
+
+
+```bash
+hadoop jar /usr/lib/hadoop/hadoop-streaming.jar \
+-files basic-mapper.py,basic-reducer.py \
+-input [[input-location]] \
+-output [[output-location]] \
+-mapper basic-mapper.py \
+-reducer basic-reducer.py
+```
+
+* `hadoop jar /usr/lib/hadoop/hadoop-streaming.jar` launches Hadoop with the `hadoop-streaming.jar` 
+
+* `-files /home/hadoop/hadoop-streaming/basic-mapper.py,/home/hadoop/hadoop-streaming/basic-reducer.py` tells the job to "ship" the executable mapper and reducer scripts (the actual filename and absolute path) to every node on the cluster. **This line must always be second when you need to ship files with your job.**
+
+* `-input [[input-location]]` tells the Hadoop the location of your source data in a distributed object/filesystem. If you specify a directory, all files in the directory will be used as inputs
+
+* `-output [[output-location]]` tells the Hadoop the location of your output data in a distributed object/filesystem.  **This parameter is just a name of a location, and it must not exist before running the job otherwise the job will fail.** 
+
+* `-mapper basic-mapper.py`  and `reducer basic-reducer.py` specify the commands to run as a mapper and reducer, respectively. **These must be shell scripts or native Linux commands.** If you are using a script, you must "ship" it to the nodes with the `-files` parameter above.
+
+---
+
+## Gotcha's
+
+* The output location of the job (HFDF, S3, Blob) must *not exist* before running a job. You will get an error if you try to write out to an existing/non-empty location
+
+* You have to _ship_ or _package_ your executables with the job.
+
+* Hadoop/Java error messages can be cryptic and only give you errors regarding the framework. If you need to debug your script you will need to look at the stdout/stderr logs
+
+* You need to specify the full path name of your mapper and reducer scripts
+
+* You MUST use basic python packages only!
+---
+
+## Example code
+
+```
+hadoop jar /usr/lib/hadoop/hadoop-streaming.jar \
+-files basic-mapper.py,basic-reducer.py \
+-input /user/hadoop/in_data \
+-output /user/hadoop/in_data \
+-mapper basic-mapper.py \
+-reducer basic-reducer.py
+```
+
+---
+
+## Hadoop References
+
+
+* Hadoop 3.3.1: https://hadoop.apache.org/docs/r3.3.1/
+
+* HDFS Filesystem Commands: https://hadoop.apache.org/docs/r3.3.1/hadoop-project-dist/hadoop-common/FileSystemShell.html
+
+* Hadoop Streaming
+https://hadoop.apache.org/docs/r3.3.1/hadoop-streaming/HadoopStreaming.html
+
+---
+
+## Various File Systems
+
+- S3
+- HDFS
+- Local file system
+
+```
+hadoop jar /usr/lib/hadoop/hadoop-streaming.jar #1 \
+-files basic-mapper.py,basic-reducer.py #2 \
+-input /user/hadoop/in_data #3 \
+-output /user/hadoop/in_data #3 \
+-mapper basic-mapper.py #4 \
+-reducer basic-reducer.py #4
+```
+
+What are the possible file paths for each item:
+
+--
+
+1. Local file system
+
+--
+
+2. Local file system or S3
+
+--
+
+3. HDFS or S3
+
+--
+
+4. HDFS - why??
+
+---
+
+## How to move between file systems?
+
+S3 and HDFS
+
+- S3 -&gt; HDFS `hadoop fs -cp s3://[S3_PATH] [HDFS_PATH]`
+- HDFS -&gt; S3 `hadoop fs -cp [HDFS_PATH] s3://[S3_PATH]`
+
+HDFS and Local
+
+- HDFS -&gt; local file system `hdfs dfs -get [HDFS_PATH] [LOCAL_PATH]`
+- local file system -&gt; HDFS `hdfs dfs -put [LOCAL_PATH] [HDFS_PATH]`
+
+Local and S3
+
+- local file system -&gt; S3 `aws s3 -cp [LOCAL_PATH] s3://[S3_PATH]`
+- S3 -&gt; local file system `aws s3 -cp s3://[S3_PATH] [LOCAL_PATH]`
+
+---
+
+## Running an EMR Cluster for Batch Jobs
+
+![](img/emr_step_streaming.PNG)
+
+## Project Introduction
+
+![](img/reddit.jpg)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
