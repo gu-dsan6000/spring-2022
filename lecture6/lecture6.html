@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 6 - Intro to Spark</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 6 - Intro to Spark
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.pull-left[
+
+## Goals
+
+* Course Logistics
+* Review of solution for HW 4
+* Questions about Lab 5 and HW 5
+* Review of Hadoop Streaming and HDFS
+* Spark!
+
+## Spark Module (~ 6 weeks)
+
+* Intro to Spark 
+* Spark RDDs
+* Spark DataFrames
+* SparkSQL
+* DataBricks on Azure
+* Spark ML
+* Spark Streaming
+]
+
+.pull-right[
+## Looking Back
+
+* Intro to Hadoop and MapReduce
+* Hadoop Streaming
+* HDFS
+
+## Today
+
+* Intro to Spark, RDDs, and DataFrames
+* Start a Hadoop cluster on AWS Elastic MapReduce (EMR) **with a bootstrap script**
+* Use Jupyter and Pyspark as front end to Spark
+* Get to know Spark RDDs and DataFrames
+
+]
+---
+
+## Course Logistics
+
+* **Start assignments as soon as they are posted so you can ask questions on Canvas and attend office hours for help**
+* Make sure you submit the url of your repo on Canvas! This is critical so we have a record of your completion on Canvas. No exceptions!
+* **Attend in-person lab on time!** We will be launching resources from this week forward that take 10 minutes to complete. Any late students will have to catch up!
+
+---
+
+## AWS Academy
+
+* Credit limit - $100
+* Course numbers:
+
+  * Course #1 - 12142
+  * Course #2 - 12143
+  
+STAY WITH COURSE 12142 UNLESS YOU HAVE RUN OUT OF CREDITS OR &gt;$90 USED! 
+
+Note that you will have to repeat several setup steps:
+
+- security group
+- EC2 keypair uploading (the AWS part only)
+- sagemaker setup
+- any S3 uploading or copying as well as bucket creation as necessary
+- EMR configuration (you will know what this means soon)
+
+---
+
+## Various File Systems
+
+- S3
+- HDFS
+- Local file system
+
+```
+hadoop jar /usr/lib/hadoop/hadoop-streaming.jar #1 \
+-files basic-mapper.py,basic-reducer.py #2 \
+-input /user/hadoop/in_data #3 \
+-output /user/hadoop/in_data #3 \
+-mapper basic-mapper.py #4 \
+-reducer basic-reducer.py #4
+```
+
+What are the possible file paths for each item:
+
+--
+
+1. Local file system
+
+--
+
+2. Local file system or S3
+
+--
+
+3. HDFS or S3
+
+--
+
+4. HDFS - why??
+
+---
+
+class: inverse, middle, center
+
+# Looking back at distribuing computations
+
+---
+
+## Starting with our _BIG_ dataset
+
+.center[
+&lt;img src="img/wikipedia-whole.png" width=700&gt;
+]
+
+
+---
+
+## The data is split
+
+.center[
+&lt;img src="img/wikipedia-split.png" width=700&gt;
+]
+
+---
+
+## The data is distributed across a cluster of machines
+
+.pull-left[
+&lt;img src="img/wikipedia-split.png"&gt;
+]
+
+.pull-right[
+&lt;img src="img/cluster.png"&gt;
+]
+
+--
+
+.center[You can think of your split/distributed data as a single collection]
+
+---
+
+## Important Latency Numbers
+
+.center[
+&lt;img src="img/latency1.png" width=600&gt;
+]
+
+---
+
+## Memory vs. Disk
+
+.center[
+&lt;img src="img/latency2.png" width=600&gt;
+]
+
+---
+
+## Memory vs. Network
+
+.center[
+&lt;img src="img/latency3.png" width=600&gt;
+]
+
+
+---
+
+## Memory, Disk and Network
+
+.center[
+&lt;img src="img/latency4.png" width=600&gt;
+]
+
+
+---
+
+## MapReduce/Hadoop was groundbreaking
+
+* It provided a simple API (map and reduce steps)
+
+* It provided **fault tolerance**, which made it possible to scale to 100s/1000s of nodes of _commodity machines_ where the likelihood of a node failing midway through a job was very high
+  * Computations on very large datasets failed and recovered and jobs completed
+  
+--
+
+## **Fault tolerance** came at a cost! 
+
+* Between each map and reduce step, MapReduce shuffles its data and writes intermediate data to disk
+  * Reading/writing to disk is 100x slower than in-memory
+  * Network communication is 1,000,000x slower than in-memory
+  
+  
+---
+
+
+class: inverse, center, middle
+
+# Introducing Spark: a Unified Engine
+
+
+---
+
+## What is Spark
+
+.pull-left[
+&lt;img src="img/spark-logo.png"&gt;
+]
+
+.pull-right[
+* A simple programming model that can capture streaming, batch, and interactive workloads
+
+* Retains fault-tolerance
+
+* Uses a different strategy for handling latency: it keeps all data __immutable and in memory__
+]
+
+* Provides speed and flexibility
+---
+
+
+## Spark Stack
+
+.center[
+&lt;img src="img/spark-stack.png"&gt;
+]
+
+
+---
+
+
+## Connected and extensible
+
+.center[
+&lt;img src="img/spark-connectors.png" width=600&gt;
+]
+
+---
+
+## Three data structure APIs
+
+1. **RDDs** (Resilient Distributed Datasets)
+
+1. **DataFrames** SQL-like structured datasets with query operations
+
+1. **Datasets** A mixture of RDDs and DataFrames 
+
+--
+
+**We'll only use RDDs and DataFrames in this course.**
+
+
+
+---
+
+class: inverse, middle, center
+
+# Spark Architecture and job flow
+
+
+---
+
+class: middle, center
+
+&lt;div align="center"&gt;
+&lt;img src="img/spark01.png" width=800&gt;
+&lt;/div&gt;
+
+
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark02.png"&gt;
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark03.png"&gt;
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark04.png"&gt;
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark05.png"&gt;
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark06.png"&gt;
+
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark07.png"&gt;
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark08.png"&gt;
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark09.png"&gt;
+
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark10.png"&gt;
+
+
+---
+
+class: middle, center
+
+&lt;img src="img/spark11.png"&gt;
+
+
+---
+
+## Spark vs. Hadoop
+
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#bflecddkhw .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#bflecddkhw .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#bflecddkhw .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#bflecddkhw .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#bflecddkhw .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#bflecddkhw .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#bflecddkhw .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#bflecddkhw .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#bflecddkhw .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#bflecddkhw .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#bflecddkhw .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#bflecddkhw .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#bflecddkhw .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#bflecddkhw .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bflecddkhw .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bflecddkhw .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#bflecddkhw .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#bflecddkhw .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bflecddkhw .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#bflecddkhw .gt_left {
+  text-align: left;
+}
+
+#bflecddkhw .gt_center {
+  text-align: center;
+}
+
+#bflecddkhw .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#bflecddkhw .gt_font_normal {
+  font-weight: normal;
+}
+
+#bflecddkhw .gt_font_bold {
+  font-weight: bold;
+}
+
+#bflecddkhw .gt_font_italic {
+  font-style: italic;
+}
+
+#bflecddkhw .gt_super {
+  font-size: 65%;
+}
+
+#bflecddkhw .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="bflecddkhw" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Hadoop Limitation</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Spark Approach</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_left">For iterative processes and interactive use, Hadoop and MapReduce's mandatory dumping of output to disk proved to be a huge bottleneck. In ML, for example, users rely on iterative processes to train-test-retrain.</td>
+      <td class="gt_row gt_left">Spark uses an in-memory processing paradigm, which lowers the disk IO substantially. Spark uses DAGs to store details of each transformation done on a parallelized dataset and does not process them to get results until required (lazy).</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">Traditional Hadoop applications needed the data first to be copied to HDFS (or other distributed filesystem) and then did the processing.</td>
+      <td class="gt_row gt_left">Spark works equally well with HDFS or any POSIX style filesystem. However, parallel Spark needs the data to be distributed.</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">Mappers needed a data-localization phase in which the data was written to the local filesystem to bring resilience.</td>
+      <td class="gt_row gt_left">Resilience in Spark is brough about by the DAGs, in which a missing RDD is re-calculated by following the path from which the RDD was created.</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">Hadoop is built on Java and you must use Java to take advantage of all of it's capabilities. Although you can run non-Java scripts with Hadoop Streaming, it is still running a Java Framework.</td>
+      <td class="gt_row gt_left">Spark is developed in Scala, and it has a unified API with so you can use Spark with Scala, Java, R and Python.</td>
+    </tr>
+  </tbody>
+  
+  
+</table></div>
+
+---
+
+class: inverse, center, middle
+
+# Introducing the RDD
+
+
+---
+
+## Example: word count (yes, again!)
+
+The "Hello, World!" of programming with large scale data.
+
+
+```python
+# read data from text file and split each line into words
+rdd = sc.textFile("...") 
+
+count = rdd.flatMap(lambda line: line.split(" ")) \ # separate lines into words
+					 .map(lambda word: (word, 1)) \ # Add 1 to each word
+					 .reduceByKey(lambda a,b:a +b) # sum all the 1's for each key
+```
+
+## **That's it!**
+
+---
+
+## Transformations and Actions (key Spark concept)
+
+.center[
+&lt;img src="img/transformations-and-actions.png"&gt;
+]
+
+---
+
+## How to create and RDD?
+
+RDDs can be created in two ways:
+
+* **Transforming an existing RDD:** just like a call to `map` on a list returns a new list, many higher order functions defined on RDDs return a **new** RDD
+
+--
+* **From a `SparkContext` or `SparkSession` object:** the `SparkContext` object (renamed `SparkSession`) can be thought of as your handle to the Spark cluster. It represents a connection _between_ the Spark Cluster and your application/client. It defines a handful of methods which can be used to create and populate a new RDD:
+
+  * **`parallelize:`** converts a local object into an RDD
+  * **`textFile:`** reads a **text** file from your filesystem and returns an RDD of strings
+
+Review all the potential RDD commands in the [guide here](https://spark.apache.org/docs/latest/rdd-programming-guide.html)
+
+---
+
+## Transformations and Actions
+
+Spark defines _**transformations**_ and _**actions**_ on RDDs:
+
+**Transformations** return new RDDs as results.
+&lt;br/&gt;
+&lt;br/&gt;
+&lt;br/&gt;
+**Actions** compute a result based on an RDD which is either returned or saved to an external filesystem.
+
+---
+
+## Transformations and Actions
+
+Spark defines _**transformations**_ and _**actions**_ on RDDs:
+
+**Transformations** return new RDDs as results.
+&lt;br/&gt;
+.red[Transfomations are **lazy**, their result RDD is not immediately computed.]
+&lt;br/&gt;
+&lt;br/&gt;
+**Actions** compute a result based on an RDD which is either returned or saved to an external filesystem.
+&lt;br/&gt;
+.red[Actions are **eager**, their result is immediately computed.]
+
+---
+
+## Common `RDD` Transformations
+
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#eiwpnwzics .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#eiwpnwzics .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#eiwpnwzics .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#eiwpnwzics .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#eiwpnwzics .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#eiwpnwzics .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#eiwpnwzics .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#eiwpnwzics .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#eiwpnwzics .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#eiwpnwzics .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#eiwpnwzics .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#eiwpnwzics .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#eiwpnwzics .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#eiwpnwzics .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eiwpnwzics .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eiwpnwzics .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#eiwpnwzics .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#eiwpnwzics .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#eiwpnwzics .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#eiwpnwzics .gt_left {
+  text-align: left;
+}
+
+#eiwpnwzics .gt_center {
+  text-align: center;
+}
+
+#eiwpnwzics .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#eiwpnwzics .gt_font_normal {
+  font-weight: normal;
+}
+
+#eiwpnwzics .gt_font_bold {
+  font-weight: bold;
+}
+
+#eiwpnwzics .gt_font_italic {
+  font-style: italic;
+}
+
+#eiwpnwzics .gt_super {
+  font-size: 65%;
+}
+
+#eiwpnwzics .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="eiwpnwzics" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Method</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Description</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>map</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Expresses a one-to-one transformation and transforms each element of a collection into one element of the resulting collection</p>
+</div></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>flatMap</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Expresses a one-to-many transformation and transforms each element to 0 or more elements</p>
+</div></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>filter</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Applies filter function that returns a boolean and returs an RDD of elements that have passed the filter condition</p>
+</div></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>distinct</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Returns RDD with duplicates removed</p>
+</div></td>
+    </tr>
+  </tbody>
+  
+  
+</table></div>
+
+---
+
+## Common `RDD` Actions
+
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#cermmfbmju .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#cermmfbmju .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#cermmfbmju .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#cermmfbmju .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#cermmfbmju .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#cermmfbmju .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#cermmfbmju .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#cermmfbmju .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#cermmfbmju .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#cermmfbmju .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#cermmfbmju .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#cermmfbmju .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#cermmfbmju .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#cermmfbmju .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cermmfbmju .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cermmfbmju .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#cermmfbmju .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#cermmfbmju .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#cermmfbmju .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#cermmfbmju .gt_left {
+  text-align: left;
+}
+
+#cermmfbmju .gt_center {
+  text-align: center;
+}
+
+#cermmfbmju .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#cermmfbmju .gt_font_normal {
+  font-weight: normal;
+}
+
+#cermmfbmju .gt_font_bold {
+  font-weight: bold;
+}
+
+#cermmfbmju .gt_font_italic {
+  font-style: italic;
+}
+
+#cermmfbmju .gt_super {
+  font-size: 65%;
+}
+
+#cermmfbmju .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="cermmfbmju" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Method</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Description</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>collect</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Returns <strong>all</strong> distributed elements of the <code>RDD</code> to the driver</p>
+</div></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>count</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Returns the number of elements in an <code>RDD</code></p>
+</div></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>take</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Returns the first <em>n</em> elements of the <code>RDD</code></p>
+</div></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p><code>reduce</code></p>
+</div></td>
+      <td class="gt_row gt_left"><div class='gt_from_md'><p>Combines elements of the <code>RDD</code> together using some function and returns result</p>
+</div></td>
+    </tr>
+  </tbody>
+  
+  
+</table></div>
+
+---
+
+## `collect` **CAUTION**
+
+.center[
+&lt;img src="img/collect-warning.png"&gt;
+]
+
+---
+
+## Another example
+
+Let's assume that we have an RDD of strings which contains gigabytes of logs collected over the previous year. Each element of the RDD represents one line of logs.
+
+Assuming the dates come in the form `YYYY-MM-DD:HH:MM:SS` and errors are logged with a prefix that includes the word "error"...
+
+**How would you determine the number of errors that were logged in December 2019?**
+
+--
+
+```python
+# read data from text file and split each line into words
+logs = sc.textFile("...") 
+
+# this is a transformation
+errors = logs.filter(lambda x: "error" in x and "2019-12" in x)
+
+# this is an action
+errors.count()
+```
+
+Spark computes RDDs the first time they are used in an action!
+
+---
+
+## Caching and Persistence
+
+By default, RDDs are recomputed every time you run an action on them. This can be expensive (in time) if you need to use a dataset more than once.
+
+**Spark allows you to control what is cached in memory.**
+
+To tell spark to cache an object in memory, use `persist()` or `cache()`:
+
+* `cache():` is a shortcut for using default storage level, which is memory only
+* `persist():` can be customized to other ways to persist data (including both memory and/or disk)
+
+
+```python
+# caches error RDD in memory, but only after an action is run
+errors = logs.filter(lambda x: "error" in x and "2019-12" in x).cache()
+```
+
+---
+
+## Using memory is great for iterative workloads
+
+&lt;div align="center"&gt;
+&lt;img src="img/hadoop-spark-run-differences.png" width=1000&gt;
+&lt;/div&gt;
+
+---
+
+## Custom Map Functions
+
+* A lambda function for short expressions
+* Local function definitions for longer code
+* Advanced: classes with RDD object passed around
+
+```
+# lambda method
+rdd.map(lambda x: len(x.split(" ")))
+
+def myFunc(s):
+    words = s.split(" ")
+    return len(words)
+
+rdd.map(myFunc)
+```
+
+What are the critical pieces of the custom function for a simple RDD map?
+
+--
+
+* single input (one of many iterations)
+* single output
+
+---
+
+## [RDD Cheatsheet](https://s3.amazonaws.com/assets.datacamp.com/blog_assets/PySpark_Cheat_Sheet_Python.pdf)
+
+&lt;div align="center"&gt;
+&lt;img src="img/rdd-cheatsheet.PNG" width=750&gt;
+&lt;/div&gt;
+
+---
+
+## Cluster Setup - 1 (install miniconda)
+```
+echo "Installing Miniconda"
+curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh
+
+echo $(date "+%B %d %T")
+
+bash /tmp/miniconda.sh -b -p /mnt/miniconda
+rm /tmp/miniconda.sh
+ln -s /mnt/miniconda $HOME/miniconda
+echo -e '\nexport PATH=$HOME/miniconda/bin:$PATH' &gt;&gt; $HOME/.bashrc
+source $HOME/.bashrc
+conda update conda -y
+
+echo $(date "+%B %d %T")
+
+```
+
+---
+
+## Cluster Setup - 2 (install cluster packages)
+
+```
+echo "Installing common Python pacakges on master and workers"
+conda install \
+-c defaults \
+-c conda-forge \
+-y \
+python=3.7 \
+dask-yarn \
+pyarrow \
+s3fs \
+bokeh \
+conda-pack \
+tornado
+
+
+echo $(date "+%B %d %T")
+```
+
+---
+
+## Cluster Setup - 3 (Print python packages)
+
+```
+if [ "$IS_MASTER" = false ]; then
+    echo "Python packages installed in worker nodes:"
+    conda list
+fi
+```
+
+---
+
+## Cluster Setup - 4 (Setup master node)
+
+```
+sudo yum install -y git libcurl-devel htop
+echo "Installing Master node Python libraries"
+conda install \
+-c defaults \
+-c conda-forge \
+-y \
+notebook \
+ipywidgets \
+jupyter-server-proxy \
+findspark \
+matplotlib \
+jupyterlab \
+scikit-learn \
+nltk \
+scipy \
+beautifulsoup4 \
+nose \
+lxml \
+hdf5 \
+seaborn \
+boto3
+
+pip install -U nbclassic&gt;=0.2.8 
+# issue with older nbclassic - https://github.com/jupyterlab/jupyterlab/issues/10228
+
+echo $(date "+%B %d %T")
+
+conda install -c johnsnowlabs -y spark-nlp
+
+echo $(date "+%B %d %T")
+```
+
+---
+
+## Cluster Setup - 5 (Other Sys Admin)
+
+```
+cat &lt;&lt;EOF &gt; /tmp/jupyter-lab.service
+[Unit]
+Description="Jupyter Lab Server"
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/su -s /bin/bash hadoop -c "cd $HOME; $HOME/miniconda/bin/jupyter lab" &gt;&gt; /mnt/tmp/jupyter-lab.log 2&gt;&amp;1
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo mv /tmp/jupyter-lab.service /etc/systemd/system
+sudo chmod 644 /etc/systemd/system/jupyter-lab.service
+sudo systemctl start jupyter-lab
+
+echo "Starting Jupyter Notebook Server"
+sudo systemctl daemon-reload
+sudo systemctl start jupyter-lab
+
+conda init
+echo -e "\nalias pip='$HOME/miniconda/bin/pip'" &gt;&gt; $HOME/.bashrc
+echo -e "\nalias python='$HOME/miniconda/bin/python'" &gt;&gt; $HOME/.bashrc
+```
+
+---
+
+class: inverse, center, middle
+
+# Demo (if time permits)
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
