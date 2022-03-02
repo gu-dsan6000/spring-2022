@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 7 - Spark DataFrames</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 7 - Spark DataFrames
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+.pull-left[
+## Admin
+
+* HW6 due Thursday (+24 hours)
+* Project Discussion Post Due after Spring Break
+* Lab 7/ HW7 Due after Spring Break
+]
+
+.pull-right[
+
+## Today
+
+* Quiz on Hadoop Streaming and HDFS
+* Questions on Lab 6 and HW 6
+* Review of Lab 5 and HW 5 Solutions
+* Review of Distributed Hardware and Spark RDDs
+* Making the EMR Cluster
+* SparkSQL and Spark DataFrames 
+
+]
+
+---
+
+class: inverse, middle, center
+
+# Essential Hardware Topics
+
+---
+
+## Memory, Disk and Network
+
+.center[
+&lt;img src="img/latency4.png" width=600&gt;
+]
+
+
+---
+
+## MapReduce/Hadoop was groundbreaking
+
+* It provided a simple API (map and reduce steps)
+
+* It provided **fault tolerance**, which made it possible to scale to 100s/1000s of nodes of _commodity machines_ where the likelihood of a node failing midway through a job was very high
+  * Computations on very large datasets failed and recovered and jobs completed
+  
+--
+
+## **Fault tolerance** came at a cost! 
+
+* Between each map and reduce step, MapReduce shuffles its data and writes intermediate data to disk
+  * Reading/writing to disk is 100x slower than in-memory
+  * Network communication is 1,000,000x slower than in-memory
+  
+  
+---
+
+
+class: inverse, center, middle
+
+# Review of Spark Intro
+
+
+---
+
+## What is Spark
+
+.pull-left[
+&lt;img src="img/spark-logo.png"&gt;
+]
+
+.pull-right[
+* A simple programming model that can capture streaming, batch, and interactive workloads
+
+* Retains fault-tolerance
+
+* Uses a different strategy for handling latency: it keeps all data __immutable and in memory__
+]
+
+* Provides speed and flexibility
+---
+
+
+## Spark Stack
+
+.center[
+&lt;img src="img/spark-stack.png"&gt;
+]
+
+
+---
+
+
+## Connected and extensible
+
+.center[
+&lt;img src="img/spark-connectors.png" width=600&gt;
+]
+
+---
+
+## Transformations and Actions
+
+Spark defines _**transformations**_ and _**actions**_ on RDDs:
+
+**Transformations** return new RDDs as results.
+&lt;br/&gt;
+.red[Transfomations are **lazy**, their result RDD is not immediately computed.]
+&lt;br/&gt;
+&lt;br/&gt;
+**Actions** compute a result based on an RDD which is either returned or saved to an external filesystem.
+&lt;br/&gt;
+.red[Actions are **eager**, their result is immediately computed.]
+
+---
+
+## `collect` **CAUTION**
+
+.center[
+&lt;img src="img/collect-warning.png"&gt;
+]
+
+
+---
+
+## Caching and Persistence
+
+By default, RDDs are recomputed every time you run an action on them. This can be expensive (in time) if you need to use a dataset more than once.
+
+**Spark allows you to control what is cached in memory.**
+
+To tell spark to cache an object in memory, use `persist()` or `cache()`:
+
+* `cache():` is a shortcut for using default storage level, which is memory only
+* `persist():` can be customized to other ways to persist data (including both memory and/or disk)
+
+
+```python
+# caches error RDD in memory, but only after an action is run
+errors = logs.filter(lambda x: "error" in x and "2019-12" in x).cache()
+```
+
+---
+
+## Using memory is great for iterative workloads
+
+&lt;div align="center"&gt;
+&lt;img src="img/hadoop-spark-run-differences.png" width=1000&gt;
+&lt;/div&gt;
+
+---
+
+class: inverse, center, middle
+
+# Cluster Setup
+
+---
+
+## EMR Setup Background
+
+When we start EMR and use the bootstrap script, what is happening?
+
+--
+
+Do you know how you would look at the bootstrap script?
+
+--
+
+Essential pieces:
+
+1. Jupyter Lab interface
+1. Consistent code across the cluster
+1. Appropriate system settings
+
+---
+
+
+## Cluster Setup - 1 (install miniconda)
+```
+echo "Installing Miniconda"
+curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh
+
+echo $(date "+%B %d %T")
+
+bash /tmp/miniconda.sh -b -p /mnt/miniconda
+rm /tmp/miniconda.sh
+ln -s /mnt/miniconda $HOME/miniconda
+echo -e '\nexport PATH=$HOME/miniconda/bin:$PATH' &gt;&gt; $HOME/.bashrc
+source $HOME/.bashrc
+conda update conda -y
+
+echo $(date "+%B %d %T")
+
+```
+
+---
+
+## Cluster Setup - 2 (install cluster packages)
+
+```
+echo "Installing common Python pacakges on master and workers"
+conda install \
+-c defaults \
+-c conda-forge \
+-y \
+python=3.7 \
+dask-yarn \
+pyarrow \
+s3fs \
+bokeh \
+conda-pack \
+tornado
+
+
+echo $(date "+%B %d %T")
+```
+
+---
+
+## Cluster Setup - 3 (Print python packages)
+
+```
+if [ "$IS_MASTER" = false ]; then
+    echo "Python packages installed in worker nodes:"
+    conda list
+fi
+```
+
+---
+
+## Cluster Setup - 4 (Setup master node)
+
+```
+sudo yum install -y git libcurl-devel htop
+echo "Installing Master node Python libraries"
+conda install \
+-c defaults \
+-c conda-forge \
+-y \
+notebook \
+ipywidgets \
+jupyter-server-proxy \
+findspark \
+matplotlib \
+jupyterlab \
+scikit-learn \
+nltk \
+scipy \
+beautifulsoup4 \
+nose \
+lxml \
+hdf5 \
+seaborn \
+boto3
+
+pip install -U nbclassic&gt;=0.2.8 
+# issue with older nbclassic - https://github.com/jupyterlab/jupyterlab/issues/10228
+
+echo $(date "+%B %d %T")
+
+conda install -c johnsnowlabs -y spark-nlp
+
+echo $(date "+%B %d %T")
+```
+
+---
+
+## Cluster Setup - 5 (Other Sys Admin)
+
+```
+cat &lt;&lt;EOF &gt; /tmp/jupyter-lab.service
+[Unit]
+Description="Jupyter Lab Server"
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/su -s /bin/bash hadoop -c "cd $HOME; $HOME/miniconda/bin/jupyter lab" &gt;&gt; /mnt/tmp/jupyter-lab.log 2&gt;&amp;1
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo mv /tmp/jupyter-lab.service /etc/systemd/system
+sudo chmod 644 /etc/systemd/system/jupyter-lab.service
+sudo systemctl start jupyter-lab
+
+echo "Starting Jupyter Notebook Server"
+sudo systemctl daemon-reload
+sudo systemctl start jupyter-lab
+
+conda init
+echo -e "\nalias pip='$HOME/miniconda/bin/pip'" &gt;&gt; $HOME/.bashrc
+echo -e "\nalias python='$HOME/miniconda/bin/python'" &gt;&gt; $HOME/.bashrc
+```
+
+---
+
+class: inverse, center, middle
+
+# DataFrames
+
+---
+
+## DataFrames in a nutshell
+
+`DataFrames` are...
+
+**Datasets organized into named columns**
+
+Conceptually equivalent to a table in a relational database or a data frame in R/Python, but with richer optimizations under the hood.
+
+**A relational API over Spark's RDDs**
+
+Because sometimes it's more convenient to use declarative relational APIs than functional APIs for analysis jobs:
+.pull-left[
+* `select`
+* `where`
+* `limit`
+]
+.pull-right[
+* `orderBy`
+* `groupBy`
+* `join`
+]
+
+
+**Able to be automatically aggresively optimized**
+
+SparkSQL applies years of research on relational optimizations in the database community to Spark
+
+---
+
+## Data Sources to PySparkSQL
+
+* File reads `spark.read.parquet(filename)`, `spark.read.text(filename)`
+* Hive tables `spark.sql("SELECT * FROM hive_src")`
+* From Pandas `spark.createDataFrame(pd_df)`
+
+--
+
+What are the file system options for the filename reference in  `spark.read.parquet(filename)`???
+
+--
+
+ANSWER: S3 or HDFS
+
+Why Not Local File System???
+
+[Read more here](https://spark.apache.org/docs/latest/sql-data-sources.html)
+
+---
+
+## Partitions in PySpark
+
+- Getting number of partitions `df.rdd.getNumPartitions()`
+- Changing number of partitions `df.repartition(num)`
+
+How many partitions to make?
+
+- At least the number of partitions as the number of total worker cores
+- More like 2-3x the number of worker cores
+
+Can also partition based on column values
+
+- `df.repartition('colname')`, which will make one partition per distinct value for the column
+
+---
+
+## DataFrame Data Types
+
+SparkSQL's `DataFrames` operate on a restricted (yet broad) set of data types. These are the most common:
+
+* Integer types (at different lengths): **`ByteType`**, **`ShortType`**, **`IntegerType`**, **`LongType`**
+* Decimal types: **`Float`**, **`Double`**
+* **`BooleanType`**
+* **`StringType`**
+* Date/Time: **`TimestampType`**, **`DateType`**
+* Complex: **`ArrayType`** (list), **`MapType`** (dictionary), 
+
+Read more about data types [here](https://spark.apache.org/docs/latest/sql-ref-datatypes.html)
+
+Do you think that **`IntegerType()`** == **`LongType()`** in DataFrames? Essentially can we flip back and forth without consequences?
+
+To access these data types, you have to import the functions `import pyspark.sql.types.*`
+---
+
+## A `DataFrame`
+
+.center[
+&lt;img src="img/dataframe.png"&gt;
+]
+
+
+---
+
+
+## Getting a look at your data
+
+There are a few ways you can have a look at your data in `DataFrames`:
+
+* **`show()`** pretty-prints `DataFrame` in tabular form. Shows first 20 elements by default.
+
+* **`take(5)`** pulls five rows of data back to your local session in a list of `Row` object format
+
+* **`printSchema()`** prints the schema of your `DataFrame` in a tree format.
+
+---
+
+## Common `DataFrame` Transformations
+
+Like on RDD's, transformations on `DataFrames` are:
+
+1. Operations that return another `DataFrame` as the results
+1. Are lazily evaluated
+
+## Some common transformations include:
+
+<div id="cfewksscly" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#cfewksscly .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#cfewksscly .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#cfewksscly .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#cfewksscly .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#cfewksscly .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cfewksscly .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#cfewksscly .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#cfewksscly .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#cfewksscly .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#cfewksscly .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#cfewksscly .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#cfewksscly .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#cfewksscly .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#cfewksscly .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#cfewksscly .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#cfewksscly .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#cfewksscly .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cfewksscly .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#cfewksscly .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#cfewksscly .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cfewksscly .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#cfewksscly .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#cfewksscly .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cfewksscly .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cfewksscly .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#cfewksscly .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#cfewksscly .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cfewksscly .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#cfewksscly .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-left: 4px;
+  padding-right: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cfewksscly .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#cfewksscly .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cfewksscly .gt_left {
+  text-align: left;
+}
+
+#cfewksscly .gt_center {
+  text-align: center;
+}
+
+#cfewksscly .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#cfewksscly .gt_font_normal {
+  font-weight: normal;
+}
+
+#cfewksscly .gt_font_bold {
+  font-weight: bold;
+}
+
+#cfewksscly .gt_font_italic {
+  font-style: italic;
+}
+
+#cfewksscly .gt_super {
+  font-size: 65%;
+}
+
+#cfewksscly .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 75%;
+  vertical-align: 0.4em;
+}
+
+#cfewksscly .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#cfewksscly .gt_slash_mark {
+  font-size: 0.7em;
+  line-height: 0.7em;
+  vertical-align: 0.15em;
+}
+
+#cfewksscly .gt_fraction_numerator {
+  font-size: 0.6em;
+  line-height: 0.6em;
+  vertical-align: 0.45em;
+}
+
+#cfewksscly .gt_fraction_denominator {
+  font-size: 0.6em;
+  line-height: 0.6em;
+  vertical-align: -0.05em;
+}
+</style>
+<table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Method</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Description</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>select</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Selects a set of named columns and returns a new <code>DataFrame</code> with those columns as a result</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>agg</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Performs aggregations on a series of columns and returns a new <code>DataFrame</code> with the calculated output</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>groupBy</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Groups the DataFrame using the specified columns, usually used before some kind of aggregation</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>join</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Inner join with another DataFrame</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>filter</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Filter the <code>DataFrame</code> to only rows that meet the specified conditions (can also use <code>where</code>)</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>limit</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Take only a subset of the <code>DataFrame</code>, can also use <code>sample</code></p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>orderBy</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Order the data based on the values of particular columns</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>withColumn</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Creates a new column in the <code>DataFrame</code></p>
+</div></td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+
+---
+
+## Specifying columns
+
+Most methods take a parameter of type `Column` or `String`, always referring to some attribute/column in the DataFrame.
+
+You can select and work with columns in ways using the DataFrame API:
+
+1. Using $ notation: `df.filter($"age" &gt; 18)`
+
+2. Referring to the DataFrame: `df.filter(df("age") &gt; 18)`
+
+3. Using the `F.col` function from the `from pyspark.sql import functions as F` library: `df.filter(F.col('age') &gt; 18)`
+
+4. Using SQL query string: `df.filter("age &gt; 18")`
+
+---
+
+## Use either DataFrame API and SparkSQL
+
+The DataFrame API and SparkSQL syntax can be used interchangeably!
+
+**Example:** return the firstname and lastname of all the employees over the age over 25 that reside in Washington D.C.
+
+## DataFrame API
+
+```python
+from pyspark.sql import functions as F
+results = df.select("firstname", "lastname") \
+            .filter(F.col('city') == 'Washington D.C.' &amp; F.col('age') &gt;= 25)
+```
+
+## SparkSQL
+
+```python
+spark.sql("select firstname, lastname from df_view " +
+"where city == 'Washington D.C.' and age &gt;= 25")
+          
+# * Note: you have to register `df` in the SQL interface 
+# using `df.createOrReplaceTempView("df_view")`
+```
+
+---
+
+## Grouping and aggregating on DataFrames
+
+Some of the most common tasks on structured data tables include:
+
+1. Grouping by a certain attributed
+1. Doing some kind of aggregation on the grouping, like a count
+
+For grouping and aggregating, SparkSQL provides a **`groupBy`** function which returns a `RelationalGroupedDataset` which has several standard aggregation functions like **`count`**, **`sum`**, **`max`**, **`min`**, and **`avg`**.
+
+#### How to group
+
+* Call a `groupBy` on a specific attribute/column of a DataFrame
+* followed by a call to `agg`
+
+
+```python
+results = df.groupBy("state") \
+            .agg(sum("sales"))
+```
+
+--
+
+The resulting variable name will be `sum(sales)`, so we can add an `alias()` method to give it a better name.
+
+
+```python
+results = df.groupBy("state") \
+            .agg(sum("sales").alias('summed_sales'))
+```
+
+---
+
+## Creating Columns on DataFrames
+
+We often need to make new variables based on existing variables. The `withColumn()` function is used for this purpose.
+
+
+```python
+results = df.withColumn('new_col_name', F.substring(F.col('state'), 1, 2))
+```
+
+We used the `F.substring(str, pos, len)` [command](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.substring.html) to produce a substring of a column.
+
+---
+
+## Dropping Data in DataFrames
+
+- Dropping rows with missing values `dropna()`
+- Dropping duplicate rows `dropDuplicates([‘column_name’])` for all or specfic columns
+- Dropping columns `drop("col")` or `drop(F.col("col"))`
+
+---
+
+## Wider PySpark.SQL.Functions World
+
+[list of all the functions!](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql.html#functions)
+
+- Distributional stats: `F.max(col)`, `F.min(col)`, `F.mean(col)`, `F.percentil_approx(col, percentage[, accuracy])` ...
+- Date manipulation: `F.date_trunc(format, timestamp)`, `F.year(col)`, `F.month(col)`, ...
+- String manipulation: `F.length(col)`, `F.substring(str, pos, len)`, `F.trim(col)`, `F.upper(col)`, ...
+- Array operations: `F.size(col)`, `F.array_contains(col, value)`, `F.explode(col)`, ...
+- Other: `F.monotonically_increasing_id()`, `F.round(col)`, ...
+
+---
+
+## Actions on DataFrames
+
+Like RDDs, `DataFrames` also have their own set of actions:
+
+<div id="ewskjuvwrb" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#ewskjuvwrb .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ewskjuvwrb .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ewskjuvwrb .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ewskjuvwrb .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ewskjuvwrb .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ewskjuvwrb .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ewskjuvwrb .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ewskjuvwrb .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ewskjuvwrb .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ewskjuvwrb .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ewskjuvwrb .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ewskjuvwrb .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ewskjuvwrb .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ewskjuvwrb .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#ewskjuvwrb .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#ewskjuvwrb .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ewskjuvwrb .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#ewskjuvwrb .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ewskjuvwrb .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#ewskjuvwrb .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-left: 4px;
+  padding-right: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ewskjuvwrb .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ewskjuvwrb .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ewskjuvwrb .gt_left {
+  text-align: left;
+}
+
+#ewskjuvwrb .gt_center {
+  text-align: center;
+}
+
+#ewskjuvwrb .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ewskjuvwrb .gt_font_normal {
+  font-weight: normal;
+}
+
+#ewskjuvwrb .gt_font_bold {
+  font-weight: bold;
+}
+
+#ewskjuvwrb .gt_font_italic {
+  font-style: italic;
+}
+
+#ewskjuvwrb .gt_super {
+  font-size: 65%;
+}
+
+#ewskjuvwrb .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 75%;
+  vertical-align: 0.4em;
+}
+
+#ewskjuvwrb .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#ewskjuvwrb .gt_slash_mark {
+  font-size: 0.7em;
+  line-height: 0.7em;
+  vertical-align: 0.15em;
+}
+
+#ewskjuvwrb .gt_fraction_numerator {
+  font-size: 0.6em;
+  line-height: 0.6em;
+  vertical-align: 0.45em;
+}
+
+#ewskjuvwrb .gt_fraction_denominator {
+  font-size: 0.6em;
+  line-height: 0.6em;
+  vertical-align: -0.05em;
+}
+</style>
+<table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Method</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Description</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>collect</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Returns an <strong>array</strong> that contains all the rows in the DataFrame to the driver</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>count</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Returns the number of rows in a DataFrame</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>first</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Returns the first row in the DataFrame</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>show</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Displays the top 20 rows in the DataFrame</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>take</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Returns the first <em>n</em> rows of the underlying RDD formatted DataFrame</p>
+</div></td></tr>
+    <tr><td class="gt_row gt_left"><div class='gt_from_md'><p><code>toPandas</code></p>
+</div></td>
+<td class="gt_row gt_left"><div class='gt_from_md'><p>Returns an <strong>pandas dataframe</strong> that contains all the rows in the DataFrame to the driver</p>
+</div></td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+
+[Ref](https://sparkbyexamples.com/spark/show-top-n-rows-in-spark-pyspark/)
+
+---
+
+## `collect` **CAUTION**
+
+.center[
+&lt;img src="img/collect-warning.png"&gt;
+]
+
+---
+
+## Limitations on `DataFrame`
+
+* Can only use DataFrame data types
+* If your unstructured data cannot be reformulated to adhere to some kind of schema, it would be better to use RDDs.
+
+---
+
+## Review of PySparkSQL Cheatsheet
+
+[https://s3.amazonaws.com/assets.datacamp.com/blog_assets/PySpark_SQL_Cheat_Sheet_Python.pdf](https://s3.amazonaws.com/assets.datacamp.com/blog_assets/PySpark_SQL_Cheat_Sheet_Python.pdf)
+
+---
+
+class: middle, center
+
+# One of the most common performance bottlenecks of new Spark users happens because you re-evaluate several transformations when you could cache intermediate results to memory
+
+---
+
+class: middle, center
+
+# PySpark Lab Preview (if time permits)
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
