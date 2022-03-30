@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 10 - Spark NLP</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 10 - Spark NLP
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+```
+## Warning: package 'magrittr' was built under R version 4.0.5
+```
+
+```
+## Warning: package 'tibble' was built under R version 4.0.5
+```
+
+```
+## Warning: package 'dplyr' was built under R version 4.0.5
+```
+
+```
+## Warning: package 'gt' was built under R version 4.0.5
+```
+
+
+.pull-left[
+
+## Looking Back
+
+* Spark DataFrames
+* Harnessing data skills at scale
+* Building models using big data
+
+
+## Upcoming
+
+* Spark NLP
+* Spark Streaming
+* AWS/Azure Cloud Computing
+
+]
+
+.pull-right[
+
+## Admin
+
+* AWS Academy Courses
+* Deadlines
+* Review of Lab, HW, Project
+* Python dependency issues!
+
+## Today
+
+* Spark UI for diagnostics
+* Spark UDFs
+* Text processing with Spark
+* Jonsnowlabs' SparkNLP Package
+
+]
+
+---
+
+## AWS Academy
+
+* Credit limit - $100
+
+* Course numbers:
+    * Course #1 - 12142
+    * Course #2 - 12143
+    * Course #3 - 12144
+    * Course #4 - 12147 (not assigned yet)
+
+STAY CURRENT COURSE UNLESS YOU HAVE RUN OUT OF CREDITS OR &gt;$90 USED!
+
+Note that you will have to repeat several setup steps:
+
+* security group
+* EC2 keypair uploading (the AWS part only)
+* any data uploading or copying to S3 buckets (bucket creation as necessary)
+* EMR configuration
+
+---
+
+## Deadlines
+
+* Lab 9 Deliverable due 3/23 (+24 hours) - https://georgetown.instructure.com/courses/142215/assignments/722123
+* Project Discussion Responses due 3/23 (+24 hours) - https://georgetown.instructure.com/courses/142215/discussion_topics/819538
+* Lab 9 Deliverable due 3/30 (+24 hours)
+* **Project EDA Assignment due 4/1 (+24 hours)** - https://georgetown.instructure.com/courses/142215/assignments/722141
+* Project EDA Discussion Post due 4/2 (+24 hours)
+
+---
+
+## Questions on Lab 9?
+
+* https://github.com/gu-anly502/lab-spark-ml
+
+---
+
+## Review of Lab 7 and HW 7
+
+* https://github.com/bigdatateaching/lab-spark-dataframe
+* https://github.com/bigdatateaching/assignment-spark-dataframe
+
+Live walkthrough with solution notebooks!
+
+---
+
+## Project EDA Assignment Walkthrough
+
+* https://github.com/gu-anly502/project-eda-assignment-AndersonMonken
+
+* Use the [discussion board](https://georgetown.instructure.com/courses/142215/discussion_topics/819192) for Module 10 to ask questions on the project!
+
+---
+
+## Python dependency issues
+
+* Time to Spark cluster start Jan 1 to Mar 14  : **2.5 minutes**
+* Time to Spark cluster start Mar 15 to Mar 20 : **8.5 minutes**
+* Time to Spark cluster start Mar 21 to Present: **4.5 minutes**
+
+Summary of issues:
+
+* Python package install time jumped by 6 minutes!
+* Installs packages dask-yarn, pyarrow, s3fs, bokeh, conda-pack, tornado
+* Package dependency issues - version incompatibility
+
+**Ideas for how we could fix this issue?**
+
+--
+
+Solution:
+
+* Solve the dependency issue once
+* Use same solution every time
+
+Python software to [evaluate package incompatibility](https://www.activestate.com/resources/quick-reads/how-to-check-for-python-dependencies-with-popular-package-managers/)
+
+
+
+---
+
+class: inverse, middle, center
+
+# Spark Diagnostic UI
+
+---
+
+## Understanding how the cluster is running your job
+
+Spark Application UI shows important facts about you Spark job:
+
+* Event timeline for each stage of your work
+* Directed acyclical graph (DAG) of your job
+* Spark job history
+* Status of Spark executors
+* Physical / logical plans for any SQL queries
+
+#### Tool to confirm you are getting the horizontal scaling that you need!
+
+Adapted from [AWS Glue Spark UI docs](https://docs.aws.amazon.com/glue/latest/dg/monitor-spark-ui.html)
+and [Spark UI docs](https://spark.apache.org/docs/latest/web-ui.html)
+
+---
+
+## Spark UI - Event timeline
+
+.center[
+&lt;img src="img/spark-ui-timeline.png" width=700&gt;
+]
+
+---
+
+## Spark UI - DAG
+
+.center[
+&lt;img src="img/spark-ui-dag.png" width=700&gt;
+]
+
+---
+
+## Spark UI - Job History
+
+.center[
+&lt;img src="img/spark-ui-jobhistory.png" width=700&gt;
+]
+
+---
+
+## Spark UI - Executors
+
+.center[
+&lt;img src="img/spark-ui-executors.png" width=700&gt;
+]
+
+---
+
+## Spark UI - SQL
+
+.center[
+&lt;img src="img/spark-ui-sql.png" width=700&gt;
+]
+
+---
+
+class: middle, center
+
+# PySpark User Defined Functions
+
+---
+
+## UDF Workflow
+
+.center[
+&lt;img src="img/spark-udf.png" width=700&gt;
+]
+
+Adapted from [UDFs in Spark](https://blog.damavis.com/en/avoiding-udfs-in-apache-spark/)
+
+---
+
+## UDF Example
+
+Problem: make a new column with ages for adults-only
+
+```
++-------+--------------+
+|room_id|   guests_ages|
++-------+--------------+
+|      1|  [18, 19, 17]|
+|      2|   [25, 27, 5]|
+|      3|[34, 38, 8, 7]|
++-------+--------------+
+```
+
+---
+
+## UDF Code Solution
+
+```
+from pyspark.sql.functions import udf, col
+
+@udf("array&lt;integer&gt;")
+   def filter_adults(elements):
+   return list(filter(lambda x: x &gt;= 18, elements))
+
+# alternatively
+from pyspark.sql.types IntegerType, ArrayType
+@udf(returnType=ArrayType(IntegerType()))
+
+...
+...
+
++-------+----------------+------------+
+|room_id| guests_ages    | adults_ages|
++-------+----------------+------------+
+| 1     | [18, 19, 17]   |    [18, 19]|
+| 2     | [25, 27, 5]    |    [25, 27]|
+| 3     | [34, 38, 8, 7] |    [34, 38]|
+| 4     |[56, 49, 18, 17]|[56, 49, 18]|
++-------+----------------+------------+
+```
+---
+
+## Alternative to Spark UDF
+
+```
+
+# Spark 3.1
+from pyspark.sql.functions import col, filter, lit
+
+df.withColumn('adults_ages',
+              filter(col('guests_ages'), lambda x: x &gt;= lit(18))).show()
+```
+
+---
+
+## UDF Speed Comparison
+
+.center[
+&lt;img src="img/spark-udf-speed.png" width=700&gt;
+]
+
+Costs:
+
+* Serialization/deserialization (think pickle files)
+* Data movement between JVM and Python
+* Less Spark optimization possible
+
+Other ways to make your Spark jobs faster [source](https://sparkbyexamples.com/spark/spark-performance-tuning/):
+
+* Cache/persist your data into memory
+* Using Spark DataFrames over Spark RDDs
+* Using Spark SQL functions before jumping into UDFs
+* Save to serialized data formats like Parquet
+
+---
+
+class: middle, center
+
+# Text analytics with Spark
+
+---
+
+## Spark methods for text analytics
+
+- String manipulation SQL functions: `F.length(col)`, `F.substring(str, pos, len)`, `F.trim(col)`, `F.upper(col)`, ...
+
+- ML transformers: `Tokenizer()`, `StopWordsRemover()`, `Word2Vec()`, `CountVectorizer()`
+
+---
+
+## Tokenizer
+
+```
+&gt;&gt;&gt; df = spark.createDataFrame([("a b c",)], ["text"])
+
+&gt;&gt;&gt; tokenizer = Tokenizer(outputCol="words")
+
+&gt;&gt;&gt; tokenizer.setInputCol("text")
+
+&gt;&gt;&gt; tokenizer.transform(df).head()
+
+Row(text='a b c', words=['a', 'b', 'c'])
+
+&gt;&gt;&gt; # Change a parameter.
+&gt;&gt;&gt; tokenizer.setParams(outputCol="tokens").transform(df).head()
+Row(text='a b c', tokens=['a', 'b', 'c'])
+
+&gt;&gt;&gt; # Temporarily modify a parameter.
+&gt;&gt;&gt; tokenizer.transform(df, {tokenizer.outputCol: "words"}).head()
+Row(text='a b c', words=['a', 'b', 'c'])
+
+&gt;&gt;&gt; tokenizer.transform(df).head()
+Row(text='a b c', tokens=['a', 'b', 'c'])
+```
+
+[doc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Tokenizer.html)
+
+---
+
+## StopWordsRemover
+
+```
+&gt;&gt;&gt; df = spark.createDataFrame([(["a", "b", "c"],)], ["text"])
+&gt;&gt;&gt; remover = StopWordsRemover(stopWords=["b"])
+&gt;&gt;&gt; remover.setInputCol("text")
+&gt;&gt;&gt; remover.setOutputCol("words")
+&gt;&gt;&gt; remover.transform(df).head().words == ['a', 'c']
+True
+&gt;&gt;&gt; stopWordsRemoverPath = temp_path + "/stopwords-remover"
+&gt;&gt;&gt; remover.save(stopWordsRemoverPath)
+&gt;&gt;&gt; loadedRemover = StopWordsRemover.load(stopWordsRemoverPath)
+&gt;&gt;&gt; loadedRemover.getStopWords() == remover.getStopWords()
+True
+&gt;&gt;&gt; loadedRemover.getCaseSensitive() == remover.getCaseSensitive()
+True
+&gt;&gt;&gt; loadedRemover.transform(df).take(1) == remover.transform(df).take(1)
+True
+&gt;&gt;&gt; df2 = spark.createDataFrame([(["a", "b", "c"], ["a", "b"])], ["text1", "text2"])
+&gt;&gt;&gt; remover2 = StopWordsRemover(stopWords=["b"])
+&gt;&gt;&gt; remover2.setInputCols(["text1", "text2"]).setOutputCols(["words1", "words2"])
+&gt;&gt;&gt; remover2.transform(df2).show()
++---------+------+------+------+
+|    text1| text2|words1|words2|
++---------+------+------+------+
+|[a, b, c]|[a, b]|[a, c]|   [a]|
++---------+------+------+------+
+```
+
+[doc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.StopWordsRemover.html)
+
+---
+
+## Application of Sentiment Analysis in PySpark
+
+#### Data: S&amp;P company earnings calls - 10s of millions of text statements
+
+#### Method: proximity-based sentiment analysis
+
+#### Tech: PySpark, Python UDFs, lots of list comprehensions!
+
+#### Outcome: Time series trends of company concerns about supply chain related issues
+
+.center[
+&lt;img src="img/spark-nlp-application.png" width=700&gt;
+]
+
+---
+
+## Application continued
+
+Example: find the `A`'s within a certain distance of a `Y`
+
+```
+# within2 -&gt; 0
+X X X X Y X X X A
+# within2 -&gt; 1
+X X A X Y X X X A
+# within2 -&gt; 2
+X A X A Y A X X A
+# within4 -&gt; 3
+A X A X Y X X X A
+```
+
+* Count the number of `Y`'s in the text that have an `A` near enough to them
+* Aggregate at scale!
+* Project uses `Tokenizer()` and `StopWordsRemover()`
+
+[Prof. Anderson's Paper](https://www.federalreserve.gov/econres/notes/feds-notes/effects-of-supply-chain-bottlenecks-on-prices-using-textual-analysis-20211203.htm)
+[COVID paper that championed the method](https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=&amp;cad=rja&amp;uact=8&amp;ved=2ahUKEwj6wNPDo9v2AhUvjYkEHVWEBFEQgAMoAHoECAMQAg&amp;url=https%3A%2F%2Fscholar.google.com%2Fscholar_url%3Furl%3Dhttps%3A%2F%2Fwww.nber.org%2Fsystem%2Ffiles%2Fworking_papers%2Fw26971%2Fw26971.pdf%26hl%3Den%26sa%3DX%26ei%3DJJI6YorIJ5aYmAGlw7awCg%26scisig%3DAAGBfm1CYPVmzy4q4LhzLZP6TY-GfGleRw%26oi%3Dscholarr&amp;usg=AOvVaw1PcLCuEIqoVwxRLdjxw7fR)
+
+---
+
+## JonSnowLabs Spark NLP Package
+
+Why use UDFs, run proximity-based sentiment? Let's use more advanced natural language processing packages!
+
+Which libraries have the most features?
+
+.center[
+&lt;img src="img/spark-nlp.png" width=600&gt;
+]
+
+
+---
+
+## Comparing NLP Packages
+
+Just because it is scalable does not mean it lacks features!
+
+.center[
+&lt;img src="img/spark-nlp-comparison-libraries.png" width=400&gt;
+]
+
+---
+
+## Most Popular AI/ML Packages
+
+.center[
+&lt;img src="img/spark-nlp-popular-packages.png" width=900&gt;
+]
+
+---
+
+## Spark NLP is faster than SpaCy
+
+
+#### Benchmark for training a pipeline with sentence bounder, tokenizer, and POS tagger on a 4-core laptop
+
+Why??
+
+* Whole stage code generation, vectorized in-memory columnar data
+* No copying of text in memory
+* Extensive profiling, config &amp; code
+optimization of Spark and TensorFlow
+* Optimized for training and inference
+
+Aaaaannndddd.... it scales!
+
+---
+
+## Spark NLP
+
+.pull-left[
+Reusing the Spark ML Pipeline
+* Unified NLP &amp; ML pipelines
+* End-to-end execution planning
+* Serializable
+* Distributable
+
+Reusing NLP Functionality
+* TF-IDF calculation
+* String distance calculation
+* Stop word removal
+* Topic modeling
+* Distributed ML algorithms
+]
+
+.pull-right[
+&lt;img src="img/spark-nlp-ml.png" width=800&gt;
+]
+
+---
+
+
+
+## Spark NLP Terminology
+
+#### Annotators
+* Like the ML tools we used in Spark
+* Always need input and output columns
+* Two flavors:
+  * Approach - like ML estimators that need a `fit()` method to make an Annotator Model or Transformer
+  * Model - like ML transformers and uses `transform()` method only
+  
+#### Annotator Models
+* Pretrained public versions of models available through `.pretained()` method
+
+### Q: Do transformer ML methods ever replace or remove columns in a Spark DataFrame?
+
+--
+
+No!! They only add columns.
+
+---
+
+## Spark NLP Sentiment Example
+
+
+.center[
+&lt;img src="img/spark-nlp-sentiment-pipeline.png" width=800&gt;
+]
+
+---
+
+## Spark NLP Pipeline Example
+
+.center[
+&lt;img src="img/spark-nlp-pipeline.png" width=800&gt;
+]
+
+---
+
+## Spark NLP Pipeline Types
+
+#### Spark Pipeline
+* Efficiently run on a whole Spark Dataframe
+* Distributable on a cluster
+* Uses Spark tasks, optimizations &amp; execution planning
+* Used by `PretrainedPipeline.transform()`
+
+#### Light Pipeline
+* Efficiently run on a single sentence
+* Faster than a Spark pipeline for up to 50,000 local documents
+* Easiest way to publish a pipeline as an API
+* Used by `PretrainedPipeline.annotate()`
+
+#### Recursive Pipeline
+* Give annotators access to other annotators in the same pipeline
+* Required when training your own models
+
+#### Essential Spark NLP reading
+
+
+
+---
+
+## Overall Code Example
+
+.pull-left[
+```
+from pyspark.ml import Pipeline
+
+document_assembler = DocumentAssembler()\
+ .setInputCol(“text”)\
+ .setOutputCol(“document”)
+ 
+sentenceDetector = SentenceDetector()\
+ .setInputCols([“document”])\
+ .setOutputCol(“sentences”)
+ 
+tokenizer = Tokenizer() \
+ .setInputCols([“sentences”]) \
+ .setOutputCol(“token”)
+ 
+normalizer = Normalizer()\
+ .setInputCols([“token”])\
+ .setOutputCol(“normal”)
+ 
+word_embeddings=WordEmbeddingsModel.pretrained()\
+ .setInputCols([“document”,”normal”])\
+ .setOutputCol(“embeddings”)
+```
+]
+
+.pull-right[
+```
+nlpPipeline = Pipeline(stages=[
+ document_assembler, 
+ sentenceDetector,
+ tokenizer,
+ normalizer,
+ word_embeddings,
+ ])
+
+pipelineModel = nlpPipeline.fit(df)
+```
+]
+
+---
+
+## Code Example for DocumentAssembler
+
+```
+import sparknlp; from sparknlp.base import *
+from sparknlp.annotator import *; from pyspark.ml import Pipeline
+
+data = spark.createDataFrame([["Spark NLP is an open-source text processing library."]]).toDF("text")
+documentAssembler = DocumentAssembler().setInputCol("text").setOutputCol("document")
+
+result = documentAssembler.transform(data)
+
+result.select("document").show(truncate=False)
++----------------------------------------------------------------------------------------------+
+|document                                                                                      |
++----------------------------------------------------------------------------------------------+
+|[[document, 0, 51, Spark NLP is an open-source text processing library., [sentence -&gt; 0], []]]|
++----------------------------------------------------------------------------------------------+
+```
+
+---
+
+## Continued
+
+```
+result.select("document").printSchema
+root
+ |-- document: array (nullable = True)
+ |    |-- element: struct (containsNull = True)
+ |    |    |-- annotatorType: string (nullable = True)
+ |    |    |-- begin: integer (nullable = False)
+ |    |    |-- end: integer (nullable = False)
+ |    |    |-- result: string (nullable = True)
+ |    |    |-- metadata: map (nullable = True)
+ |    |    |    |-- key: string
+ |    |    |    |-- value: string (valueContainsNull = True)
+ |    |    |-- embeddings: array (nullable = True)
+ |    |    |    |-- element: float (containsNull = False)
+```
+ 
+---
+
+## Readings
+
+Required:
+
+* [Spark NLP Code Concepts](https://nlp.johnsnowlabs.com/docs/en/concepts)
+
+Encouraged:
+
+* [Spark NLP Annotators](https://nlp.johnsnowlabs.com/docs/en/annotators)
+* [Intro to Spark NLP](https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=&amp;ved=2ahUKEwixqcmzrNv2AhUwlIkEHYvyDIAQFnoECCQQAQ&amp;url=https%3A%2F%2Ftowardsdatascience.com%2Fintroduction-to-spark-nlp-foundations-and-basic-components-part-i-c83b7629ed59&amp;usg=AOvVaw0iGfPHhEGYAjT_AFweqXBD)
+
+
+---
+
+class: middle, center
+
+# PySpark NLP Lab Preview (if time permits)
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
