@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 11 - Spark Streaming</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 11 - Spark Streaming
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+.pull-left[
+
+## Looking Back
+
+* Spark DataFrames
+* Harnessing data skills at scale
+* Building models using big data
+* Processing text at scale
+
+## Upcoming
+
+
+* Spark Streaming
+* AWS/Azure Cloud Computing
+* RAPIDS/Dask/Ray/etc.
+
+]
+
+.pull-right[
+
+## Admin
+
+* AWS Academy Courses
+* Deadlines
+* Review of Lab, HW, Project
+
+## Today
+
+* Spark UI for diagnostics
+* Spark UDFs
+* Spark Streaming
+
+]
+
+---
+
+## AWS Academy
+
+* Credit limit - $100
+
+* Course numbers:
+    * Course #1 - 12142
+    * Course #2 - 12143
+    * Course #3 - 12144
+    * Course #4 - 12147 (not assigned yet)
+
+STAY CURRENT COURSE UNLESS YOU HAVE RUN OUT OF CREDITS OR &gt;$90 USED!
+
+Note that you will have to repeat several setup steps:
+
+* security group
+* EC2 keypair uploading (the AWS part only)
+* any data uploading or copying to S3 buckets (bucket creation as necessary)
+* EMR configuration
+
+---
+
+## Deadlines
+
+* Lab 10 Deliverable due 3/30 (+24 hours) - https://georgetown.instructure.com/courses/142215/assignments/722124
+* **Project EDA Assignment due 4/1 (+24 hours)** - https://georgetown.instructure.com/courses/142215/assignments/722141
+* Project EDA Discussion Post due 4/4 (+24 hours)
+* Lab 11 Deliverable due 4/6 (+24 hours)
+* Project EDA Response Posts due 4/10 (+24 hours)
+
+
+---
+
+## Questions on Lab 10?
+
+* https://github.com/gu-anly502/lab-spark-nlp
+
+---
+
+## Review of Lab 9
+
+* https://github.com/bigdatateaching/lab-spark-ml
+
+Live walkthrough with solution notebook!
+
+---
+
+## Project EDA Assignment Questions
+
+* https://github.com/gu-anly502/project-eda-assignment-AndersonMonken
+
+* Use the [discussion board](https://georgetown.instructure.com/courses/142215/discussion_topics/819192) for Module 10 to ask questions on the project!
+
+---
+
+class: inverse, middle, center
+
+# Spark Diagnostic UI
+
+---
+
+## Understanding how the cluster is running your job
+
+Spark Application UI shows important facts about you Spark job:
+
+* Event timeline for each stage of your work
+* Directed acyclical graph (DAG) of your job
+* Spark job history
+* Status of Spark executors
+* Physical / logical plans for any SQL queries
+
+#### Tool to confirm you are getting the horizontal scaling that you need!
+
+Adapted from [AWS Glue Spark UI docs](https://docs.aws.amazon.com/glue/latest/dg/monitor-spark-ui.html)
+and [Spark UI docs](https://spark.apache.org/docs/latest/web-ui.html)
+
+---
+
+## Spark UI - Event timeline
+
+.center[
+&lt;img src="img/spark-ui-timeline.png" width=700&gt;
+]
+
+---
+
+## Spark UI - DAG
+
+.center[
+&lt;img src="img/spark-ui-dag.png" width=700&gt;
+]
+
+---
+
+## Spark UI - Job History
+
+.center[
+&lt;img src="img/spark-ui-jobhistory.png" width=700&gt;
+]
+
+---
+
+## Spark UI - Executors
+
+.center[
+&lt;img src="img/spark-ui-executors.png" width=700&gt;
+]
+
+---
+
+## Spark UI - SQL
+
+.center[
+&lt;img src="img/spark-ui-sql.png" width=700&gt;
+]
+
+---
+
+class: middle, center
+
+# PySpark User Defined Functions
+
+---
+
+## UDF Workflow
+
+.center[
+&lt;img src="img/spark-udf.png" width=700&gt;
+]
+
+Adapted from [UDFs in Spark](https://blog.damavis.com/en/avoiding-udfs-in-apache-spark/)
+
+---
+
+## UDF Example
+
+Problem: make a new column with ages for adults-only
+
+```
++-------+--------------+
+|room_id|   guests_ages|
++-------+--------------+
+|      1|  [18, 19, 17]|
+|      2|   [25, 27, 5]|
+|      3|[34, 38, 8, 7]|
++-------+--------------+
+```
+
+---
+
+## UDF Code Solution
+
+```
+from pyspark.sql.functions import udf, col
+
+@udf("array&lt;integer&gt;")
+   def filter_adults(elements):
+   return list(filter(lambda x: x &gt;= 18, elements))
+
+# alternatively
+from pyspark.sql.types IntegerType, ArrayType
+@udf(returnType=ArrayType(IntegerType()))
+
+...
+...
+
++-------+----------------+------------+
+|room_id| guests_ages    | adults_ages|
++-------+----------------+------------+
+| 1     | [18, 19, 17]   |    [18, 19]|
+| 2     | [25, 27, 5]    |    [25, 27]|
+| 3     | [34, 38, 8, 7] |    [34, 38]|
+| 4     |[56, 49, 18, 17]|[56, 49, 18]|
++-------+----------------+------------+
+```
+---
+
+## Alternative to Spark UDF
+
+```
+
+# Spark 3.1
+from pyspark.sql.functions import col, filter, lit
+
+df.withColumn('adults_ages',
+              filter(col('guests_ages'), lambda x: x &gt;= lit(18))).show()
+```
+
+---
+
+## UDF Speed Comparison
+
+.center[
+&lt;img src="img/spark-udf-speed.png" width=700&gt;
+]
+
+Costs:
+
+* Serialization/deserialization (think pickle files)
+* Data movement between JVM and Python
+* Less Spark optimization possible
+
+Other ways to make your Spark jobs faster [source](https://sparkbyexamples.com/spark/spark-performance-tuning/):
+
+* Cache/persist your data into memory
+* Using Spark DataFrames over Spark RDDs
+* Using Spark SQL functions before jumping into UDFs
+* Save to serialized data formats like Parquet
+
+---
+
+class: inverse, middle, center
+
+# Spark Streaming
+
+---
+
+## Up to now, we've worked with batch data
+
+Processing large, already collected, _batches_ of data.
+
+.center[
+&lt;img src="img/s1.jpg" width=800&gt;
+]
+
+---
+
+## Batch examples
+
+* Analysis of terabytes of logs collected over a long period of time
+
+* Analysis of code bases on GitHub or other large repositories of textual information such as Wikipedia
+
+* Nightly analysis on large data sets collected over a 24 hour period
+
+---
+
+
+## How do we work with streams?
+
+Processing every value coming from a _stream_ of data. That is, data values that are **constantly** arriving
+
+.center[
+&lt;img src="img/s2.jpg" width=800&gt;
+]
+
+---
+
+## Spark solved this problem by creating `DStreams` using _microbatching_
+
+`DStreams` are represented of a **sequence** of RDDs.
+
+.center[
+&lt;img src="img/s4.jpg" width=800&gt;
+]
+
+A `StreamingContext` object can be created from an existing `SparkContext` object.
+
+
+```python
+sc = ...
+ssc = StreamingContext(sc, 1)
+```
+
+
+---
+
+## Important points about `StreamingContext`
+
+1. Once the context has been started, no new streaming computations can be setup or added
+
+1. Once a context has been stopped, it cannot be restarted
+
+1. Only **one** `StreamingContext` can active with a Spark session at the same time
+
+1. `stop()` on the `StreamingContext` also stops the the `SparkContext`
+
+1. Multiple `StreamingContext` can be created as long as the previous one is stopped
+
+---
+
+## `DStreams` had some issues
+
+* **Lack of a single API for batch and stream processing:** Even though DStreams and RDDs have consistent APIs (i.e., same operations and same semantics), developers still had to _explicitly rewrite their code to use different classes_ when converting their batch jobs to streaming jobs.
+
+* **Lack of separation between logical and physical plans:** 
+Spark Streaming executes the DStream operations in the same sequence in which they were specified by the developer. Since developers effectively specify the exact physical plan, there is no scope for automatic optimizations, and developers have to hand-optimize their code to get the best performance.
+
+* **Lack of native support for event-time windows:** DStreams define window operations based only on the time when each record is received by Spark Streaming (known as processing time). However, many use cases need to calculate windowed aggregates based on the time when the records were generated (known as event time) instead of when they were received or processed. The lack of native support of event-time windows made it hard for developers to build such pipelines with Spark Streaming.
+
+---
+
+class: inverse, middle, center
+
+# Structured Streaming (DataFrame) based
+
+---
+
+## What is Structured Streaming?
+
+### A single, unified programming model and interface for batch and stream processing
+
+This unified model offers a simple API interface for both batch and streaming workloads. You can use familiar SQL or batch-like DataFrame queries (like those you’ve learned about in the previous chapters) on your stream as you would on a batch, leaving dealing with the underlying complexities of fault tolerance, optimizations, and tardy data to the engine. In the coming sections, we will examine some of the queries you might write.
+
+### A broader definition of stream processing
+
+Big data processing applications have grown complex enough that the line between real-time processing and batch processing has blurred significantly. The aim with Structured Streaming was to broaden its applicability from traditional stream processing to a larger class of applications; any application that periodically (e.g., every few hours) to continuously (like traditional streaming applications) processes data should be expressible using Structured Streaming.
+
+---
+
+## The Programming Model of Structured Streaming
+
+.center[
+&lt;img src="img/lesp_0803.png" width=800&gt;
+]
+
+
+---
+
+## The Programming Model of Structured Streaming
+
+.pull-left[
+* Every new record received in the data stream is like a new row being appended to the unbounded input table. 
+* Structured Streaming will automatically convert this batch-like query to a streaming execution plan. This is called incrementalization
+* Structured Streaming figures out what state needs to be maintained to update the result each time a record arrive
+* Finally, developers specify triggering policies to control when to update the results. Each time a trigger fires, Structured Streaming checks for new data (i.e., a new row in the input table) and incrementally updates the result.
+]
+
+.pull-right[
+&lt;img src="img/lesp_0804.png"&gt;
+]
+
+
+---
+
+## Specifying output mode
+
+### Append mode
+
+Only the new rows appended to the result table since the last trigger will be written to the external storage. This is applicable only in queries where existing rows in the result table cannot change (e.g., a map on an input stream).
+
+### Update mode
+
+Only the rows that were updated in the result table since the last trigger will be changed in the external storage. This mode works for output sinks that can be updated in place, such as a MySQL table.
+
+### Complete mode
+
+The entire updated result table will be written to external storage.
+
+---
+
+## The 5 Fundamentals steps of a Structured Streaming Query
+
+1. Define input sources
+
+1. Transform data
+
+1. Define output sink and output mode
+
+1. Specify processing details
+
+1. Start the query
+
+---
+
+## 1. Define input sources
+
+.pull-left[
+
+```python
+ spark = SparkSession...
+    lines = (spark
+      .readStream.format("socket")
+      .option("host", "localhost")
+      .option("port", 9999)
+      .load())
+```
+]
+
+.pull-right[
+* This code generates the lines `DataFrame` as an unbounded table of newline- separated text data read from `localhost:9999`. Note that, similar to batch sources with spark.read, this does not immediately start reading the streaming data; it only sets up the configurations necessary for reading the data once the streaming query is explicitly started.
+* Besides sockets, Apache Spark natively supports reading data streams from Apache Kafka and all the various file-based formats that DataFrameReader supports (Parquet, ORC, JSON, etc.). The details of these sources and their supported options are dis‐ cussed later in this chapter. Furthermore, a streaming query can define multiple input sources, both streaming and batch, which can be combined using DataFrame opera‐ tions like unions and joins (also discussed later in this chapter).
+]
+
+---
+
+## 2. Transform data
+
+
+
+```python
+from pyspark.sql.functions import *
+words = lines.select(split(col("value"), "\\s").alias("word")) 
+counts = words.groupBy("word").count()
+```
+
+
+* Now we can apply the usual DataFrame operations
+* Note that these operations to transform the lines streaming DataFrame would work in the exact same way if lines were a batch DataFrame.
+
+
+---
+
+## 3. Define output sink and output mode
+
+
+```python
+writer = counts.writeStream.format("console").outputMode("complete")
+```
+
+---
+
+### 4. Specify Processing details
+
+
+.pull-left[
+
+```python
+checkpointDir = "..."
+    writer2 = (writer
+      .trigger(processingTime="1 second")
+      .option("checkpointLocation", checkpointDir))
+```
+]
+
+.pull-right[
+**Triggering details**
+
+* **Default:** When the trigger is not explicitly specified, then by default, the streaming query executes data in micro-batches where the next micro-batch is triggered as soon as the previous micro-batch has completed.
+* **Processing time with trigger interval:** You can explicitly specify the Processing Time trigger with an interval, and the query will trigger micro-batches at that fixed interval.
+* **Once:** In this mode, the streaming query will execute exactly one micro-batch. It processes all the new data available in a single batch and then stops itself. This is useful when you want to control the triggering and processing from an external scheduler that will restart the query using any custom schedule (e.g., to control cost by only executing a query once per day).
+* **Continuous: ** experimental as of Spark 3.0
+]
+
+
+---
+
+## 5. Start the query
+
+
+```python
+streamingQuery = writer2.start()
+```
+
+
+---
+
+## Spark Streaming under the hood
+
+.pull-left[
+1. Spark SQL analyzes and optimizes this logical plan to ensure that it can be executed incrementally and efficiently on streaming data.
+2. Spark SQL starts a background thread that continuously executes a  loop
+3. This loop continues until the query is terminated
+]
+
+.pull-right[
+&lt;img src="img/lesp_0805.png"&gt;
+]
+
+---
+
+## Spark Streaming under the hood
+
+.pull-left[
+**The loop**
+
+a. Based on the configured trigger interval, the thread checks the streaming sources for the availability of new data.
+
+b. If available, the new data is executed by running a micro-batch. From the optimized logical plan, an optimized Spark execution plan is generated that reads the new data from the source, incrementally computes the updated result, and writes the output to the sink according to the configured output mode.
+
+c. For every micro-batch, the exact range of data processed (e.g., the set of files or the range of Apache Kafka offsets) and any associated state are saved in the configured checkpoint location so that the query can deterministically reproc‐ ess the exact range if needed.
+]
+
+.pull-right[
+&lt;img src="img/lesp_0805.png"&gt;
+]
+
+---
+
+## Spark Streaming under the hood
+
+.pull-left[
+**The loop continues until the query is terminated which can be for one of the following reasons:**
+
+a. A failure has occurred in the query (either a processing error or a failure in the cluster).
+
+b. The query is explicitly stopped using streamingQuery.stop().
+
+c. If the trigger is set to Once, then the query will stop on its own after executing a single micro-batch containing all the available data.
+]
+
+.pull-right[
+&lt;img src="img/lesp_0805.png"&gt;
+]
+
+
+---
+
+## Data Transformations
+
+Each execution is considered as a _micro-batch_. DataFrame operations can be broadly classified into _stateless_ and _stateful_ operations based on whether executing the operation incrementally requires maintaining a state. 
+
+### Stateless Transformations
+
+All projection operations (e.g., `select()`, `explode()`, `map()`, `flatMap()`) and selection operations (e.g., `filter()`, `where()`) process each input record individually without needing any information from previous rows. This lack of dependence on prior input data makes them stateless operations.
+
+A streaming query having only stateless operations supports the append and update output modes, but not complete mode. This makes sense: since any processed output row of such a query cannot be modified by any future data, it can be written out to all streaming sinks in append mode (including append-only ones, like files of any format). On the other hand, such queries naturally do not combine information across input records, and therefore may not reduce the volume of the data in the result. Complete mode is not supported because storing the ever-growing result data is usually costly. This is in sharp contrast with stateful transformations, as we will discuss next.
+
+---
+
+## Stateful Transformations
+
+The simplest example of a stateful transformation is `DataFrame.groupBy().count()`, which generates a running count of the number of records received since the beginning of the query. In every micro-batch, the incremental plan adds the count of new records to the previous count generated by the previous micro-batch. This partial count communicated between plans is the state. This state is maintained in the memory of the Spark executors and is checkpointed to the configured location in order to tolerate failures. While Spark SQL automatically manages the life cycle of this state to ensure correct results, you typically have to tweak a few knobs to control the resource usage for maintaining state. In this section, we are going to explore how different stateful operators manage their state under the hood.
+
+
+---
+
+## Stateful Streaming Aggregations
+
+Structured Streaming can incrementally execute most DataFrame aggregation operations. You can aggregate data by keys (e.g., streaming word count) and/or by time (e.g., count records received every hour). 
+
+* Aggregations Not Based on Time
+
+* Aggregations with Event-Time Windows
+
+
+---
+
+
+## Mapping of event time to tumbling windows
+
+.center[
+&lt;img src="img/lesp_0807.png" width=800&gt;
+]
+
+
+---
+
+## Mapping of event time to multiple overlapping windows
+
+.center[
+&lt;img src="img/lesp_0808.png" width=800&gt;
+]
+
+---
+
+## Updated counts in the result table after each five-minute trigger
+
+
+.center[
+&lt;img src="img/lesp_0809.png" width=800&gt;
+]
+
+---
+
+### Using watermarks
+
+A watermark is defined as a moving threshold in event time that trails behind the maximum event time seen by the query in the processed data. The trailing gap, known as the watermark delay, defines how long the engine will wait for late data to arrive.
+
+.center[
+&lt;img src="img/lesp_0810.png" width=700&gt;
+]
+
+
+---
+
+## AWS Kinesis
+
+.center[
+&lt;img src="img/Kinesis-Logo.png" width=700&gt;
+]
+
+* Similar to Apache Kafka
+* Abstracts away much of the configuration details
+* Costs based on usage
+
+Read more comparisons [here](https://hevodata.com/learn/amazon-kinesis-vs-kafka/).
+
+---
+
+## Spark SQL Connector for AWS Kinesis
+
+Connector to make Kinesis work with Spark Structured Streaming
+
+https://github.com/qubole/kinesis-sql
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
