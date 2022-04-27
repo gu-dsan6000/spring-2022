@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Lecture 15 - Final Lecture</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Anderson Monken" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/tachyons-4.12.0/tachyons.min.css" rel="stylesheet" />
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <link href="libs/xaringanExtra-extra-styles-0.2.6/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <script src="libs/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="libs/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="libs/shareon-1.4.1/shareon.min.js"></script>
+    <link href="libs/xaringanExtra-shareagain-0.2.6/shareagain.css" rel="stylesheet" />
+    <script src="libs/xaringanExtra-shareagain-0.2.6/shareagain.js"></script>
+    <script src="libs/kePrint-0.0.1/kePrint.js"></script>
+    <link href="libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Lecture 15 - Final Lecture
+## ANLY 502 - Big Data and Cloud Computing
+### Anderson Monken
+### Spring 2022
+
+---
+
+
+
+
+
+
+
+
+
+
+
+.pull-left[
+
+## Looking Back
+
+* Spark DataFrames
+* Harnessing data skills at scale
+* Building models using big data
+* Processing text at scale
+* Streaming data at scale
+
+]
+
+.pull-right[
+
+## Admin
+
+* AWS Academy Courses
+* Deadlines
+* Review of Project Assignments
+
+## Today
+
+* Pause for Course Review
+* Dask
+* Ray
+* RAPIDS
+
+]
+
+---
+
+## AWS Academy
+
+* Credit limit - $100
+
+* Course numbers:
+    * Course #1 - 12142
+    * Course #2 - 12143
+    * Course #3 - 12144
+    * Course #4 - 12147
+    * Course #5 - 15501
+
+STAY CURRENT COURSE UNLESS YOU HAVE RUN OUT OF CREDITS OR &gt;$90 USED!
+
+Note that you will have to repeat several setup steps:
+
+* security group
+* EC2 keypair uploading (the AWS part only)
+* any data uploading or copying to S3 buckets (bucket creation as necessary)
+* EMR configuration
+
+---
+
+## Deadlines
+
+* **Project ML Assignment** - Due by 4/28 11:59 pm (+24 hour penalty-free) - [link](https://georgetown.instructure.com/courses/142215/assignments/722145)
+* Project Revise and Resubmit Discussion - Due by 5/1 11:59 pm (+24 hour penalty-free) - [link](https://georgetown.instructure.com/courses/142215/discussion_topics/866840)
+* Project Final Portfolio Submission - Due by 5/3 11:59 pm (NO EXTENSION!) CANNOT BE LATE! - [link](https://georgetown.instructure.com/courses/142215/assignments/722146)
+
+---
+
+## Project NLP Assignment Review
+
+* Everyone is making solid progress
+* You have to use all your data! Small data is NOT allowed!
+* Need to get more creative
+* Practice on writing the summary of work completed
+
+---
+
+## Project Presentation Reminder
+
+* Presentations on April 21 and April 28
+* 3 minute presentation and follow-up Q&amp;A
+* https://georgetown.instructure.com/courses/142215/assignments/722146
+* In-person attendence required! Participation critical!
+
+---
+
+## Project ML Assignment Reminder
+
+#### New deadline - Thursday, April 28
+
+* https://github.com/gu-anly502/project-ml-assignment-AndersonMonken
+
+* Use the [discussion board](https://georgetown.instructure.com/courses/142215/discussion_topics/819196) for Module 14 to ask questions on the project ML work!
+
+---
+
+## Project Revise and Resubmit Reminder
+
+#### New deadline - Sunday, May 1
+
+* https://georgetown.instructure.com/courses/142215/discussion_topics/866840
+
+* Use the [discussion board](https://georgetown.instructure.com/courses/142215/modules/items/2542884) for Module 15 to ask questions on discussion
+
+---
+
+## Project Final Portfolio Overview
+
+* https://github.com/gu-anly502/project-final-portfolio-AndersonMonken
+
+* **CANNOT BE LATE**
+
+* Use the [discussion board](https://georgetown.instructure.com/courses/142215/modules/items/2542884) for Module 15 to ask questions on the final project!
+
+---
+
+## AWS EMR bootstrapping
+
+* It was down for an hour yesterday!
+* Package access is critical
+* One single package was accidentally deleted on public production server
+
+.center[
+&lt;img src="img/missing-packages-everywhere.jpg" width=700&gt;
+]
+
+---
+
+## TA'ing in the fall!
+
+If you have not yet reached out to me about being a TA for 502 in the fall, please reach out!
+
+---
+
+## External Conferences
+
+* [US PyCon](https://us.pycon.org/2022/) on April 27-May 3 (in-person and virtual)
+* [Rev3 MLOps Conference](https://rev.dominodatalab.com/) on May 5-6 (in-person and virtual)
+* [AWS Summit in DC](https://aws.amazon.com/events/summits/washington-dc/?trk=758c98ca-3bae-482f-86a2-d0b2f3d0a0c7&amp;sc_channel=em) on May 23-25 **FREE**
+* [Data+AI Databricks Summit](https://databricks.com/dataaisummit/north-america-2022) on June 27 - 30 (in-person and virtual)
+* [SciPy Conference](https://www.scipy2022.scipy.org/) on July 11 - 17 (in-person and virtual)
+* [Ray Summit](https://www.anyscale.com/ray-summit-2022) on August 23 and 24 (in-person and virtual)
+
+---
+
+## Course Evaluation
+
+* Based on guidance received from Main Campus Executive Faculty, we will spend time today so you can complete the course evaluation for ANLY 502
+
+To access the evaluations, you can use the "Login" button in the email sent to you from the Registrar's Office or go to: https://eval.georgetown.edu.
+
+#### 20 minutes to take the course evaluation!
+
+---
+
+---
+class: middle,center,inverse
+
+# Reminder of how we distributed computations
+
+---
+
+## Starting with our _BIG_ dataset
+
+.center[
+&lt;img src="img/wikipedia-whole.png" width=700&gt;
+]
+
+
+---
+
+## The data is split
+
+.center[
+&lt;img src="img/wikipedia-split.png" width=700&gt;
+]
+
+---
+
+## The data is distributed across a cluster of machines
+
+.pull-left[
+&lt;img src="img/wikipedia-split.png"&gt;
+]
+
+.pull-right[
+&lt;img src="img/cluster.png"&gt;
+]
+
+--
+
+.center[You can think of your split/distributed data as a single collection]
+
+.center[Keep this in mind as we go forward]
+
+---
+class: middle,center,inverse
+
+# Introducing Dask
+
+
+---
+
+## Distributed dataframes
+
+- Dask was developed originally at Continuum Analytics (now Anaconda) to provide a pure Python solution to distributed data and computing
+
+.pull-left[
+- Dask can run 
+  - on a local machine
+  - on a cluster using Yarn as a cluster manager
+  - on a cluster using a default Python-native scheduler within dask
+  - using SLURM or other managers on cluster computing infrastructure
+  - other choices
+]
+.pull-right[
+&lt;img src="img/dask-cluster.png" width=700&gt;
+]
+
+---
+
+## Dask
+
+
+- Dask was primarily developed to overcome single-machine restrictions in the PyData ecosystem
+- The first idea was a distributed DataFrame object where each component is a **pandas** _DataFrame_
+  + This allowed the intuitive use of the **pandas** API adapted by **dask** to the distributed computing world
+- The **dask** task scheduler coordinates and monitors execution of computations across CPU cores and machines
+- High-level API allows the abstraction of a lot of **dask** functionality to make programming easier
+
+.center[&lt;img src="img/dask-structure.png" width=600&gt;]
+
+
+---
+background-image: url(img/dask-df2.png)
+background-size: contain
+
+---
+class: middle,center,inverse
+
+# Data storage
+
+---
+
+## Distributed objects
+
+.pull-left[
+&lt;img src="img/dask-array.png" width=300&gt;
+
+Dask "chunks" big data out into component chunks, which are made up of **numpy** arrays and **pandas** _DataFrame_ objects
+]
+.pull-right[
+&lt;img src="img/dask-df1.png" width=400&gt;
+]
+
+---
+class: middle,center,inverse
+
+# Task management   
+
+---
+
+## Directed acyclic graphs
+
+A graph is a representation of a set of objects that have a relationship with one another.
+
+A graph is compounded by: 
+
++ node: a function, an object or an action 
++ line: symbolize the relationship among nodes
+
+In a *directed acyclical graph* there is one logical way to traverse the graph. **No node is visited twice**
+
+
+---
+background-image: url(img/dask-dag1.png)
+background-size: contain
+
+---
+background-image: url(img/dask-dag2.png)
+background-size: contain
+
+---
+
+## Computational resources
+
+.pull-left[&lt;img src="img/dask-scale.png" width=300&gt;]
+.pull-right[Computational resources can be enhanced by either
+
+1. Bringing on board bigger machines, or 
+1. Bringing in more of the same machine
+]
+
+---
+
+## Management of computational resources
+
+.pull-left[
+![](img/dask-cooking.png)
+]
+.pull-right[
+As tasks get completed, the task manager re-allocates resources to other tasks in order to complete the objective
+]
+
+---
+
+## Actual implementations
+
+.pull-left[
+```python
+import dask.delayed as delayed
+
+def inc(i):
+  return i + 1
+
+def add(x, y): return x + y
+
+x = delayed(inc)(1)
+y = delayed(inc)(2)
+z = delayed(add)(x, y)
+```
+]
+.pull-right[
+&lt;img src="img/dask-dag3.png" width=200&gt;
+]
+---
+background-image: url(img/dask-dag4.png)
+background-size: contain
+
+---
+class: middle,center,inverse
+
+# dask dataframes
+
+---
+
+## pandas DataFrame and dask DataFrame
+
+Dask's API leverages the familiarity of the pandas API
+
+In fact, what dask does is split up a really large DataFrame into smaller partitions, each of which is a pandas _DataFrame_, distributes them, and then uses the task manager to operate on them
+
+This is actually very useful, since the DataFrame structure is central to 
+data science as a structured container that holds heterogeneous data
+
+The familiar operations in pandas, like selection, filtering, mutating, groupby, summarize, are then made available to dask in the high-level API
+
+
+---
+
+## dask 
+
+The use of the familiar pandas API in dask makes the technical start-up cost of using dask much lower for data scientists already using PyData
+
+The fact that dask is scalable from a single local machine to the cloud, and that you can basically use the same code in each environment makes development, testing and deployment easier
+
+---
+
+## dask vs Spark
+
+&lt;table class="table" style="margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;"&gt; Spark &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; Dask &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; Spark is written in Scala &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Dask is written in Python &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; Provides support for R, Python, Java &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Only supports Python &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; Spark has its own ecosystem &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Dask uses the PyData ecosystem &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; Spark ahs its own APIs plus Pandas data types &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Dask leverages the pandas API &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; Easier for those coming from Scala or SQL &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Easier for Python practitioners &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; Does not support arrays &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Supports the numpy multidimensional array &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+---
+
+## dask and Spark
+
+- Both dask and Spark serve similar purposes in the Big Data ecosystem
+  - Distributed data
+  - Parallelized tasks
+  - Data manipulation
+  - Data modeling
+  
+Dask supports **scikit-learn** for modeling and allows parallel computations for 
+many machine learning tasks. So the familiar ML models and code can be leveraged
+in a straightforward manner to a parallel computational situation.
+
+---
+
+## dask useful links
+
+* [Dask tutorial from package authors](https://tutorial.dask.org/00_overview.html)
+* ["Why every Data Science should use Dask?"](https://towardsdatascience.com/why-every-data-scientist-should-use-dask-81b2b850e15b_)
+---
+
+## Ray background
+
+* Framework to run more generic python workloads at scale
+* Run any function in a remote setting!
+* Can take advantage of shared memory in Python
+
+.center[
+&lt;img src="img/RayStack.png" width=700&gt;
+]
+
+---
+
+## ray useful links
+
+* [Ray basics](https://docs.ray.io/en/latest/ray-core/examples/overview.html)
+* [Ray tutorial from UC Berkeley](https://rise.cs.berkeley.edu/blog/ray-tips-for-first-time-users/)
+* [Plasma storage for Ray](https://ray-project.github.io/2017/08/08/plasma-in-memory-object-store.html)
+* [Running Dask on top of Ray](https://docs.ray.io/en/latest/data/dask-on-ray.html)
+* [In-depth Ray examples and docs](https://docs.google.com/document/d/167rnnDFIVRhHhK4mznEIemOtj63IOhtIPvSYaPgI4Fg/edit#)
+
+---
+
+## Other interesting products
+
+* [Xarray on Dask](https://examples.dask.org/xarray.html)
+  * multi-dimensional arrays distributed across workers and nodes
+* [RAPIDS](https://docs.rapids.ai/start)
+  * GPU equivalents for Pandas, scikit-learn, etc.
+* [RAPIDS for Spark](https://www.nvidia.com/en-us/deep-learning-ai/solutions/data-science/apache-spark-3/)
+* [TensorFlowOnSpark](https://www.snowflake.com/guides/what-spark-tensorflow)
+
+---
+
+class: inverse, middle, center
+
+# You made it!
+
+---
+
+## You didn't drown in the sea of BIG DATA
+
+.center[
+&lt;img src="img/sea-of-big-data.jpg"&gt;
+]
+
+---
+
+class: inverse, center, middle
+
+# How do we feel?
+
+---
+
+.pull-left[
+## Want more data?
+]
+
+--
+
+.pull-right[
+&lt;img src="img/more-big-data.jpg"&gt;
+]
+
+---
+
+.pull-left[
+## Unsure about what tools to use?
+]
+
+--
+
+.pull-right[
+&lt;img src="img/spark-nospark.jpg"&gt;
+]
+
+
+---
+
+
+.pull-left[
+## Despise small data?
+]
+
+--
+
+.pull-right[
+&lt;img src="img/notsmalldata.jpg"&gt;
+]
+
+
+---
+
+## What did you do?
+
+* Operated big data tools and cloud infrastructure, including Spark (with all of Spark’s APIs), MapReduce, Hadoop, and other tools in the big data ecosystem
+
+--
+
+* Developed strategies to break down large problems and datasets into manageable pieces
+
+--
+
+* Recognized and use ancillary tools that support big data processing, including git and the Linux command line
+
+--
+
+* Setup and manage big data infrastructure and tools in the cloud on Amazon Web Services
+
+--
+
+* Executed a big data analytics exercise from start to finish: ingest, wrangle, clean, analyze, model, store, and present
+
+--
+
+* Felt the pain of dealing with big data tools and errors
+
+--
+
+* Used up many AWS credits!
+
+---
+
+## What did you learn?
+
+.pull-left[
+* _Big data_ concepts and terms
+* How to _parallelize_ locally with Python `Python`
+* _Cloud computing_ fundamentals and how the cloud works (focus on AWS)
+* Hadoop's history, design, and influence on the big data world
+* How _MapReduce_ works and how to write a MapReduce job with languages other than Java using _Hadoop Streaming_, and how to scale out
+]
+
+.pull-right[
+* The main features of _Spark_
+  * Spark RDDs and DataFrames
+  * SparkSQL
+  * SparkML
+  * Spark Streaming
+  * Spark NLP
+* Productionalizing workflows in the cloud using serverless architecture
+* Project presentation, writing, and usability skills
+]
+
+
+---
+
+class: inverse, center, middle
+
+# Data Engineering
+
+---
+
+## What is Data Engineering?
+
+&gt; Data Engineering is the part of data science dealing with the practical applications of collecting and analyzing data. It aims to bring engineering rigor to the process of building and supporting reliable data systems.
+
+### Example
+
+The _machine learning_ part of data science in your project deals with building a model which can recommend, based on your viewing history, which movies you are likely to enjoy next. 
+
+The _data engineering_ part of the discipline deals with building a system which will continuously gather and clean up viewing history, then run the model at scale on the data of all users, distribute the results to the recommendation user interface, all of this in an automated fashion with monitoring and alerting build around each step of the process.
+
+Data engineering deals with **building and operating big data platforms to support all data science scenarios.** There are various other terms being used for some of these aspects: 
+* DataOps refers to moving data in a data system, 
+* MLOps refers to running ML at scale, like in our example above. 
+
+_Data engineering_ encompasses all of these and looks at how we can implement DevOps for data science.
+
+---
+
+## Data Platform
+
+.pull-left[
+* Data is ingested into the system and persisted in a storage layer. * * Processing aggregates and reshapes the data to enable analytics and ML scenarios. 
+* Orchestration and governance are cross-cutting concerns which cover all the components of the platform.
+* Once processed, data is distributed to other downstream systems.
+* All components are tracked by and deployed from source control.
+]
+
+
+.pull-right[
+&lt;img src="img/01-data-platform-anatomy.png"&gt;
+]
+
+---
+
+## Storage
+
+.pull-left[
+**Storage** is the core piece of a data platform around which everything else is built. Data gets ingested into the storage layer and is distributed from there. All workloads (data processing, analytics, machine learning) access this layer.
+]
+
+.pull-right[
+&lt;img src="img/02-data-platform-storage.png"&gt;
+]
+
+
+---
+
+## Source Control
+
+.pull-left[
+Tracking everything in source control and deploying automatically is foundational to a robust system.
+]
+
+.pull-right[
+&lt;img src="img/03-data-platform-source-control.png"&gt;
+]
+
+---
+
+## Orchestration
+
+.pull-left[
+The **orchestration** layer handles scheduling for all tasks and data movement into and out of the data platform.
+]
+
+
+.pull-right[
+&lt;img src="img/04-data-platform-orchestration.png"&gt;
+]
+
+
+---
+
+## Data Processing
+
+.pull-left[
+**Data processing** is a common workload: reshaping the ingested raw data to facilitate analytics.
+]
+
+.pull-right[
+&lt;img src="img/05-data-platform-processing.png"&gt;
+]
+
+
+---
+
+## Analytics
+
+.pull-left[
+**Analytics** is one of the major workloads the data platform needs to support. This includes all reporting, insight generation, and statistical analysis that data scientists run on the platform.
+]
+
+.pull-right[
+&lt;img src="img/06-data-platform-analytics.png"&gt;
+]
+
+---
+
+## Machine Learning
+
+.pull-left[
+Running **machine learning** at scale is the other major workload any data platform needs to support, besides data processing and analytics.
+]
+
+.pull-right[
+&lt;img src="img/07-data-platform-ml.png"&gt;
+]
+
+---
+
+## Data Governance
+
+.pull-left[
+**Data governance** deals with multiple aspects of managing data, including metadata, data quality, access control, compliance to laws and standards etc.
+]
+
+.pull-right[
+&lt;img src="img/08-data-platform-governance.png"&gt;
+]
+
+---
+
+## A Data Platform deployed in Azure
+
+.center[
+&lt;img src="img/09-data-platform-azure.png" width=800&gt;
+]
+
+
+---
+
+class: inverse, center, middle
+
+# Big Data Architectures
+
+
+---
+
+## Lambda Architecture
+
+.pull-left[
+* The **Hot Path** is for latency sensitive data which flows for rapid consumption for serving to end clients.
+
+* The **Cold Path** — This is for processing the entire data and is processed in batches for workloads that can tolerate greater latencies (several hours probably) until results are ready. All data enters cold storage into immutable storage (Master Data)
+
+* Analytics clients can consume data from either layer
+
+Benefits:
+* The tolerance to human errors
+* The tolerance to hardware crashes
+* Scalability and quick response time
+]
+
+.pull-right[
+&lt;img src="img/lambda.png"&gt;
+]
+
+
+---
+
+## Kappa Architecture
+
+.pull-left[
+* The Kappa Architecture is an evolution of the Lambda Architecture.
+
+* It eliminates the cold path and to ensure that all processing happens in a near real-time streaming node and that recomputation on the data happens when needed being streamed through the Kappa pipeline again.
+
+* In terms of the source or input in Kappa Architecture this is thought of in terms of as an unified log which ingests all data (considered to be events.)
+
+* The unified log which acts as the source is designed to be distributed and fault tolerant. Events are immutable and the current state of an event is changed only by a new event being appended.
+
+* The biggest advantage - simplification of the Lambda architecture, can use onlyy streaming services as your main source of data. 
+]
+
+.pull-right[
+&lt;img src="img/kappa.png"&gt;
+]
+
+---
+
+class: inverse, center, middle
+
+# Final thoughts on Spark
+
+---
+
+
+## Pain Points of Spark
+
+* Spark supports in-memory computation which makes it fast but it makes it very costly. As it stores all data in memory so it needs large memory to store all the data
+
+* Spark is not truly real-time but it is near real-time tool. It processes data in the batch which we can make it as small as 1 second. 
+
+* Spark doesn’t have its own file system. It uses the file system of other technologies like HDFS, Hive, etc.
+
+* Spark doesn’t support record based window operation but it supports time-based window operation. It means you cannot integrate data according to records but you can integrate data according to time (number of seconds).
+
+* Developers complain of out-of-place errors when working with Spark. Some failures are so vague that developers can spend hours simply looking at them and trying to defer what they mean.
+
+---
+
+## Is Spark still revelant?
+
+https://coiled.io/blog/is-spark-still-relevant-dask-spark-rapids/
+
+---
+
+class: center, middle, inverse
+
+# BIG THANKS TO OUR TAs TIANYI AND AASHIKA!
+
+---
+
+class: center, middle, inverse
+
+# A HUGE thank you!
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
